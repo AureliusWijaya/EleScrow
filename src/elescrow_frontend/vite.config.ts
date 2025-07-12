@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
 
     define: {
       'import.meta.env.VITE_DFX_NETWORK': JSON.stringify(env.DFX_NETWORK),
-      'import.meta.env.VITE_CANISTER_ID_PEANUT_FUND_PROJECT_BACKEND': JSON.stringify(env.CANISTER_ID_PEANUT_FUND_PROJECT_BACKEND),
+      'import.meta.env.VITE_CANISTER_ID_ELESCROW_BACKEND': JSON.stringify(env.CANISTER_ID_ELESCROW_BACKEND),
     },
 
     resolve: {

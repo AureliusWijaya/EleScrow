@@ -1,10 +1,10 @@
 {
   "canisters": {
-    "peanut_fund_project_backend": {
+    "elescrow_backend": {
       "main": "src/elescrow_backend/main.mo",
       "type": "motoko"
     },
-    "peanut_fund_project_frontend": {
+    "elescrow_frontend": {
       "dependencies": ["elescrow_backend"],
       "source": ["src/elescrow_frontend/dist"],
       "type": "assets",

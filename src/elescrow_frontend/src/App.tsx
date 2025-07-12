@@ -7,8 +7,7 @@ const App: React.FC = () => {
   return (
     <Router>
         <Routes>
-          {/* 404 - Not Found */}
-          <Route path="*" element={<Layout><NotFoundPage /></Layout>} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
     </Router>
   );

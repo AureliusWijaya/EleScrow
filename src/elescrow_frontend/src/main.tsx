@@ -12,8 +12,6 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <ThemeProvider>
       <App />
-    </ThemeProvider>
   </React.StrictMode>
 );

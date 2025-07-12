@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
 
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -11,9 +10,6 @@ const NotFoundPage: React.FC = () => {
       <p className="text-lg text-muted-foreground">
         Oops! The page you were looking for doesn&apos;t exist.
       </p>
-      <Button variant="outline" onClick={() => navigate("/")}>
-        Go to Home
-      </Button>
     </div>
   );
 };
