@@ -1,14 +1,25 @@
 {
   "canisters": {
     "elescrow_backend": {
-      "main": "src/elescrow_backend/main.mo",
-      "type": "motoko"
+      "candid": "src/elescrow_backend/elescrow_backend.did",
+      "package": "elescrow_backend",
+      "type": "rust"
     },
     "elescrow_frontend": {
-      "dependencies": ["elescrow_backend"],
-      "source": ["src/elescrow_frontend/dist"],
+      "dependencies": [
+        "elescrow_backend"
+      ],
+      "source": [
+        "src/elescrow_frontend/dist"
+      ],
       "type": "assets",
-      "build": "npm --prefix src/elescrow_frontend run build"
+      "workspace": "elescrow_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
     }
   },
   "output_env_file": ".env",
