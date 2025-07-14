@@ -1,0 +1,15 @@
+type Message = record {
+  id : nat64;
+  to : principal;
+  from : principal;
+  "text" : text;
+  timestamp : nat64;
+};
+type PostResult = variant { Ok; Err : text };
+service : {
+  get_conversation : (principal) -> (vec Message) query;
+  get_message_count : () -> (nat64) query;
+  get_messages : (opt nat64) -> (vec Message) query;
+  health_check : () -> (bool) query;
+  post_message : (principal, text) -> (PostResult);
+}

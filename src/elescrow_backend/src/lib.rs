@@ -1,4 +1,4 @@
-use candid::{CandidType, Principal};
+use candid::{candid_method, export_service, CandidType, Principal};
 use ic_cdk::api::time;
 use ic_cdk_macros::*;
 use ic_stable_structures::{
@@ -98,6 +98,7 @@ thread_local! {
 }
 
 #[update]
+#[candid_method(update)]
 fn post_message(to: Principal, text: String) -> PostResult {
     if text.len() > MAX_TEXT_BYTES as usize {
         return PostResult::Err(format!("msg too long ({} bytes max)", MAX_TEXT_BYTES));
@@ -117,6 +118,7 @@ fn post_message(to: Principal, text: String) -> PostResult {
 }
 
 #[query]
+#[candid_method(query)]
 fn get_conversation(with: Principal) -> Vec<Message> {
     let me = ic_cdk::caller();
     let mut messages: Vec<Message> = LOG.with(|log| {
@@ -129,4 +131,59 @@ fn get_conversation(with: Principal) -> Vec<Message> {
 
     messages.reverse();
     messages.into_iter().take(100).collect()
+}
+
+#[query]
+#[candid_method(query)]
+fn health_check() -> bool {
+    true
+}
+
+#[query]
+#[candid_method(query)]
+fn get_message_count() -> u64 {
+    LOG.with(|log| log.borrow().len())
+}
+
+#[query]
+#[candid_method(query)]
+fn get_messages(limit: Option<u64>) -> Vec<Message> {
+    let me = ic_cdk::caller();
+    let limit = limit.unwrap_or(50).min(100);
+    
+    let mut messages: Vec<Message> = LOG.with(|log| {
+        log.borrow()
+            .iter()
+            .filter(|(_, m)| m.from == me || m.to == me)
+            .map(|(_, m)| m.clone())
+            .collect()
+    });
+
+    messages.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)); // Sort by newest first
+    messages.into_iter().take(limit as usize).collect()
+}
+
+// Generate the Candid interface
+export_service!();
+
+#[query(name = "__get_candid_interface_tmp_hack")]
+fn export_candid() -> String {
+    __export_service()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_candid() {
+        use std::env;
+        use std::fs::write;
+        use std::path::PathBuf;
+
+        let dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let dir = dir.join("candid");  // ← Remove .parent().unwrap()
+        std::fs::create_dir_all(&dir).unwrap();
+        write(dir.join("elescrow_backend.did"), export_candid()).expect("Write failed.");
+    }
 }

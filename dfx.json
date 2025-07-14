@@ -1,7 +1,7 @@
 {
   "canisters": {
     "elescrow_backend": {
-      "candid": "src/elescrow_backend/elescrow_backend.did",
+      "candid": "src/elescrow_backend/candid/elescrow_backend.did",
       "package": "elescrow_backend",
       "type": "rust"
     },
