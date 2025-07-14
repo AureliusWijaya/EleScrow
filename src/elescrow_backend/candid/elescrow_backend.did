@@ -1,15 +1,79 @@
+type BalanceResult = variant { Ok : UserBalance; Err : text };
+type BoolResult = variant { Ok : bool; Err : text };
+type CanisterInfo = record {
+  name : text;
+  version : text;
+  total_memory_usage : nat64;
+  modules : vec text;
+};
+type CreateTransactionRequest = record {
+  to : principal;
+  transaction_type : TransactionType;
+  escrow_agent : opt principal;
+  description : text;
+  deadline : opt nat64;
+  amount : nat64;
+};
 type Message = record {
   id : nat64;
   to : principal;
   from : principal;
+  read : bool;
   "text" : text;
   timestamp : nat64;
 };
+type PaginationParams = record { offset : opt nat64; limit : opt nat64 };
 type PostResult = variant { Ok; Err : text };
+type Transaction = record {
+  id : nat64;
+  to : principal;
+  status : TransactionStatus;
+  updated_at : nat64;
+  transaction_type : TransactionType;
+  from : principal;
+  escrow_agent : opt principal;
+  description : text;
+  deadline : opt nat64;
+  created_at : nat64;
+  amount : nat64;
+};
+type TransactionResult = variant { Ok : Transaction; Err : text };
+type TransactionStatus = variant {
+  Disputed;
+  Refunded;
+  Approved;
+  Cancelled;
+  Completed;
+  Pending;
+};
+type TransactionType = variant {
+  Escrow;
+  Release;
+  Refund;
+  Dispute;
+  DirectPayment;
+};
+type UserBalance = record {
+  updated_at : nat64;
+  user : principal;
+  locked : nat64;
+  available : nat64;
+};
 service : {
+  cancel_transaction : (nat64) -> (BoolResult);
+  create_transaction : (CreateTransactionRequest) -> (TransactionResult);
+  deposit : (nat64) -> (BalanceResult);
+  get_canister_info : () -> (CanisterInfo) query;
   get_conversation : (principal) -> (vec Message) query;
   get_message_count : () -> (nat64) query;
-  get_messages : (opt nat64) -> (vec Message) query;
+  get_messages : (PaginationParams) -> (vec Message) query;
+  get_transaction : (nat64) -> (TransactionResult) query;
+  get_transaction_count : () -> (nat64) query;
+  get_unread_messages : () -> (vec Message) query;
+  get_user_balance : () -> (BalanceResult) query;
+  get_user_transactions : (PaginationParams) -> (vec Transaction) query;
   health_check : () -> (bool) query;
+  mark_message_read : (nat64) -> (PostResult);
   post_message : (principal, text) -> (PostResult);
+  withdraw : (nat64) -> (BalanceResult);
 }
