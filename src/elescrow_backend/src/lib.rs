@@ -8,12 +8,10 @@ use std::cell::RefCell;
 
 // Import all modules
 mod messaging;
-mod transactions;
 mod types;
 
 // Re-export public types and functions from modules
 pub use messaging::*;
-pub use transactions::*;
 pub use types::*;
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
