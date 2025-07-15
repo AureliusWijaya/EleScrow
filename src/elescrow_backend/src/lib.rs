@@ -42,8 +42,7 @@ fn get_canister_info() -> CanisterInfo {
         name: "Elescrow Backend".to_string(),
         version: "0.1.0".to_string(),
         modules: vec![
-            "messaging".to_string(),
-            "transactions".to_string(),
+            "messaging".to_string()
         ],
         total_memory_usage: get_total_memory_usage(),
     }
@@ -52,8 +51,7 @@ fn get_canister_info() -> CanisterInfo {
 fn get_total_memory_usage() -> u64 {
     // Calculate total memory usage across all modules
     let message_count = get_message_count();
-    let transaction_count = get_transaction_count();
-    message_count + transaction_count
+    message_count
 }
 
 // Generate the Candid interface for ALL modules
