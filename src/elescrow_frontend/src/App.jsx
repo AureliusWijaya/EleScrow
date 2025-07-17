@@ -1,33 +1,20 @@
 import { useState } from "react";
 import { elescrow_backend } from "declarations/elescrow_backend";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Navbar from "./shared/components/navbar";
+import HomePage from "./pages/home-page";
+import LoginPage from "./pages/login-page";
+import RegisterPage from "./pages/register-page";
 
 function App() {
-  const [greeting, setGreeting] = useState("");
-
-  function handleSubmit(event) {
-    event.preventDefault();
-    const name = event.target.elements.name.value;
-    elescrow_backend.greet(name).then((greeting) => {
-      setGreeting(greeting);
-    });
-    return false;
-  }
-
   return (
-    <main>
-      <img src="/logo2.svg" alt="DFINITY logo" />
-      <br />
-      <br />
-
-      <form action="#" onSubmit={handleSubmit}>
-        <h1 className="text-3xl font-bold text-blue-500">
-          Hello Tailwind v3 🎈
-        </h1>
-        <label htmlFor="name">Enter your name: &nbsp;</label>
-        <input id="name" alt="Name" type="text" />
-        <button type="submit">Click Me!</button>
-      </form>
-      <section id="greeting">{greeting}</section>
+    <main className="flex flex-col w-full h-full bg-primary text-primary-text">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={HomePage()} />
+        <Route path="/login" element={LoginPage()} />
+        <Route path="/register" element={RegisterPage()} />
+      </Routes>
     </main>
   );
 }
