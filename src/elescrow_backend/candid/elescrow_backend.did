@@ -1,0 +1,138 @@
+type ApiError = variant {
+  AccountFrozen : record { reason : text };
+  TransactionError : record { transaction_id : nat64; reason : text };
+  NotFound : record { resource : text };
+  ValidationError : record { field : text; message : text };
+  Unauthorized : record { reason : text };
+  AlreadyExists : record { resource : text };
+  ServiceUnavailable : record { "service" : text };
+  RateLimited : record { retry_after : nat64 };
+  AccountNotVerified;
+  InternalError : record { details : text };
+  Forbidden : record { action : text };
+  BadRequest : record { message : text };
+  InvalidState : record { current_state : text; required_state : text };
+  Expired : record { resource : text; expired_at : nat64 };
+  InsufficientFunds : record { available : nat64; required : nat64 };
+};
+type CanisterInfo = record {
+  build_time : text;
+  git_commit : text;
+  name : text;
+  version : text;
+  cycle_balance : nat64;
+  memory_usage : MemoryUsage;
+};
+type HealthStatus = record {
+  status : text;
+  version : text;
+  uptime : nat64;
+  timestamp : nat64;
+  memory_usage : MemoryUsage;
+};
+type KycStatus = variant {
+  UnderReview;
+  Approved;
+  Rejected : record { reason : text };
+  Expired;
+  Pending;
+  NotStarted;
+};
+type LoginAttempt = record {
+  failure_reason : opt text;
+  timestamp : nat64;
+  success : bool;
+  user_agent : opt text;
+  ip_address : opt text;
+};
+type MemoryUsage = record {
+  total_size : nat64;
+  stable_size : nat64;
+  heap_size : nat64;
+};
+type NotificationChannel = variant { SMS; Email; Push; InApp };
+type NotificationPreferences = record {
+  sms_enabled : bool;
+  security_alerts : bool;
+  weekly_summary : bool;
+  transaction_alerts : bool;
+  push_enabled : bool;
+  notification_channels : vec NotificationChannel;
+  marketing_emails : bool;
+  email_enabled : bool;
+};
+type PaginationParams = record { offset : nat64; limit : nat64 };
+type RegisterUserRequest = record {
+  username : text;
+  email : opt text;
+  display_name : opt text;
+  referral_code : opt text;
+};
+type Result = variant { Ok; Err : ApiError };
+type Result_1 = variant { Ok : User; Err : ApiError };
+type Result_2 = variant { Ok : vec User; Err : ApiError };
+type SecuritySettings = record {
+  require_password_change : bool;
+  last_password_change : nat64;
+  allowed_ips : vec text;
+  session_timeout : nat64;
+  two_factor_enabled : bool;
+  two_factor_method : opt TwoFactorMethod;
+  login_history : vec LoginAttempt;
+};
+type TwoFactorMethod = variant { SMS; Email; HardwareKey; AuthenticatorApp };
+type UpdateProfileRequest = record {
+  bio : opt text;
+  avatar_url : opt text;
+  email : opt text;
+  display_name : opt text;
+  phone : opt text;
+};
+type User = record {
+  notification_preferences : NotificationPreferences;
+  security_settings : SecuritySettings;
+  account : UserAccount;
+  profile : UserProfile;
+};
+type UserAccount = record {
+  verification_level : VerificationLevel;
+  freeze_reason : opt text;
+  is_frozen : bool;
+  is_verified : bool;
+  kyc_status : KycStatus;
+  is_active : bool;
+};
+type UserProfile = record {
+  bio : text;
+  updated_at : nat64;
+  "principal" : principal;
+  username : text;
+  avatar_url : opt text;
+  created_at : nat64;
+  last_active : nat64;
+  email : opt text;
+  display_name : text;
+  phone : opt text;
+};
+type UserSearchParams = record {
+  verification_level : opt VerificationLevel;
+  "query" : opt text;
+  created_after : opt nat64;
+  is_active : opt bool;
+  created_before : opt nat64;
+};
+type VerificationLevel = variant { Enhanced; Basic; Standard };
+service : () -> {
+  deactivate_account : () -> (Result);
+  get_canister_info : () -> (CanisterInfo) query;
+  get_current_user : () -> (Result_1) query;
+  get_user_by_principal : (principal) -> (Result_1) query;
+  get_user_by_username : (text) -> (Result_1) query;
+  health_check : () -> (HealthStatus) query;
+  is_username_available : (text) -> (bool) query;
+  register_user : (RegisterUserRequest) -> (Result_1);
+  search_users : (UserSearchParams, PaginationParams) -> (Result_2) query;
+  update_notification_preferences : (NotificationPreferences) -> (Result_1);
+  update_profile : (UpdateProfileRequest) -> (Result_1);
+  update_security_settings : (SecuritySettings) -> (Result_1);
+}
