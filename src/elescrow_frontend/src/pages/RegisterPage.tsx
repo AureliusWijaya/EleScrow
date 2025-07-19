@@ -1,6 +1,6 @@
 import React from "react";
 
-function RegisterPage() {
+function RegisterPage(): JSX.Element {
   return <div className="h-full">Test Register</div>;
 }
 
