@@ -1,6 +1,6 @@
 import React from "react";
 
-function LoginPage() {
+function LoginPage(): JSX.Element {
   return <div className="h-full">Test Login</div>;
 }
 

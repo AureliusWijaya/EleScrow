@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: colors.slate["950"],
+        primary: colors.gray["950"],
         secondary: colors.sky["700"],
         "secondary-hover": colors.sky["800"],
         incoming: colors.emerald["800"],
