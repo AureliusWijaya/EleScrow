@@ -4,6 +4,21 @@ use serde::{Deserialize, Serialize};
 pub type ApiResult<T> = Result<T, crate::types::errors::ApiError>;
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
+pub struct SystemState {
+    pub is_paused: bool,
+    pub reason: Option<String>,
+}
+
+impl Default for SystemState {
+    fn default() -> Self {
+        Self {
+            is_paused: false,
+            reason: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
 pub struct PaginationParams {
     pub offset: u64,
     pub limit: u64,
@@ -93,6 +108,11 @@ pub enum AuditAction {
     TransactionCancelled,
     TransactionDisputed,
     TransactionRefunded,
+    TransactionReversed,
+    TransactionFailed,
+    TransactionReleased,
+    TransactionDeposited,
+    TransactionWithdrawn,
     
     Deposit,
     Withdrawal,
@@ -103,6 +123,9 @@ pub enum AuditAction {
     ConfigurationChanged,
     AccountFrozen,
     AccountUnfrozen,
+    SystemPaused,
+    SystemResumed,
+    KycStatusUpdated,
     
     RateLimitExceeded,
     SuspiciousActivity,

@@ -1,6 +1,7 @@
 use candid::{CandidType, Principal};
+use ic_stable_structures::{storable::Bound, Storable};
 use serde::{Deserialize, Serialize};
-
+use std::borrow::Cow;
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: u64,
@@ -40,6 +41,7 @@ pub enum TransactionType {
     Release,
     Withdrawal,
     Deposit,
+    Reversal,
 }
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize, PartialEq)]
@@ -79,6 +81,11 @@ pub enum TransactionStatus {
     PartiallyRefunded {
         refunded_amount: u64,
         refund_transaction_ids: Vec<u64>,
+    },
+    Resolved {
+        resolution: DisputeResolution,
+        resolved_at: u64,
+        resolved_by: Principal,
     },
 }
 
@@ -216,8 +223,16 @@ pub struct Balance {
     pub updated_at: u64,
 }
 
+#[derive(Clone, Debug, candid::CandidType, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum DisputeResolution {
+    ReleaseToRecipient,
+    RefundToSender,
+    SplitBetweenParties { sender_percentage: u8 },
+}
+
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
 pub struct BalanceHistoryEntry {
+    pub principal: Principal,
     pub timestamp: u64,
     pub balance_before: u64,
     pub balance_after: u64,
@@ -225,6 +240,18 @@ pub struct BalanceHistoryEntry {
     pub transaction_id: u64,
     pub transaction_type: TransactionType,
     pub description: String,
+}
+
+impl Storable for BalanceHistoryEntry {
+    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+        Cow::Owned(candid::encode_one(self).expect("Failed to encode BalanceHistoryEntry"))
+    }
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        candid::decode_one(bytes.as_ref()).expect("Failed to decode BalanceHistoryEntry")
+    }
+
+    const BOUND: Bound = Bound::Unbounded;
 }
 
 impl Default for TransactionMetadata {

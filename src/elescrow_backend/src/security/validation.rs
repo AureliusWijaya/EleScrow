@@ -154,73 +154,6 @@ pub fn validate_text(text: &str, field: &str, min_length: usize, max_length: usi
     Ok(sanitized)
 }
 
-pub fn validate_password(password: &str) -> Result<(), ApiError> {
-    if password.len() < 8 {
-        return Err(ApiError::ValidationError {
-            field: "password".to_string(),
-            message: "Password must be at least 8 characters".to_string(),
-        });
-    }
-    
-    if password.len() > 128 {
-        return Err(ApiError::ValidationError {
-            field: "password".to_string(),
-            message: "Password too long".to_string(),
-        });
-    }
-    
-    let has_uppercase = password.chars().any(|c| c.is_uppercase());
-    let has_lowercase = password.chars().any(|c| c.is_lowercase());
-    let has_digit = password.chars().any(|c| c.is_digit(10));
-    let has_special = password.chars().any(|c| !c.is_alphanumeric());
-    
-    if !has_uppercase || !has_lowercase || !has_digit || !has_special {
-        return Err(ApiError::ValidationError {
-            field: "password".to_string(),
-            message: "Password must contain uppercase, lowercase, number, and special character".to_string(),
-        });
-    }
-    
-    Ok(())
-}
-
-pub fn sanitize_html(input: &str) -> String {
-    input
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&#x27;")
-        .replace("/", "&#x2F;")
-}
-
-pub fn validate_array<T>(
-    items: &[T],
-    field: &str,
-    min_items: Option<usize>,
-    max_items: Option<usize>,
-) -> Result<(), ApiError> {
-    if let Some(min) = min_items {
-        if items.len() < min {
-            return Err(ApiError::ValidationError {
-                field: field.to_string(),
-                message: format!("{} must contain at least {} items", field, min),
-            });
-        }
-    }
-    
-    if let Some(max) = max_items {
-        if items.len() > max {
-            return Err(ApiError::ValidationError {
-                field: field.to_string(),
-                message: format!("{} cannot contain more than {} items", field, max),
-            });
-        }
-    }
-    
-    Ok(())
-}
-
 pub fn validate_timestamp(timestamp: u64, field: &str) -> Result<(), ApiError> {
     use ic_cdk::api::time;
     
@@ -245,18 +178,6 @@ pub fn validate_timestamp(timestamp: u64, field: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub fn validate_registration(username: &str, email: Option<&str>, password: &str) -> Result<(), ApiError> {
-    validate_username(username)?;
-    
-    if let Some(email) = email {
-        validate_email(email)?;
-    }
-    
-    validate_password(password)?;
-    
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,15 +197,5 @@ mod tests {
         assert!(validate_email("user+tag@domain.co.uk").is_ok());
         assert!(validate_email("invalid.email").is_err());
         assert!(validate_email("@example.com").is_err());
-    }
-    
-    #[test]
-    fn test_password_validation() {
-        assert!(validate_password("Secure123!").is_ok());
-        assert!(validate_password("weak").is_err());
-        assert!(validate_password("nocapital123!").is_err());
-        assert!(validate_password("NOLOWER123!").is_err());
-        assert!(validate_password("NoNumber!").is_err());
-        assert!(validate_password("NoSpecial123").is_err());
     }
 }

@@ -2,12 +2,13 @@ use ic_stable_structures::{StableBTreeMap, Storable};
 use std::cell::RefCell;
 use crate::storage::memory::{Memory, MemoryRegion, get_memory};
 use crate::types::errors::ApiError;
+
 pub struct StableStorage<K, V> 
 where 
     K: Storable + Ord + Clone,
     V: Storable + Clone,
 {
-    map: RefCell<StableBTreeMap<K, V, Memory>>,
+    map: RefCell<Option<StableBTreeMap<K, V, Memory>>>,
     region: MemoryRegion,
 }
 
@@ -18,17 +19,37 @@ where
 {
     pub fn new(region: MemoryRegion) -> Self {
         Self {
-            map: RefCell::new(StableBTreeMap::init(get_memory(region))),
+            map: RefCell::new(None),
             region,
         }
     }
+
+    fn get_or_init_map(&self) -> std::cell::Ref<StableBTreeMap<K, V, Memory>> {
+        if self.map.borrow().is_none() {
+            let memory = get_memory(self.region);
+            let btree_map = StableBTreeMap::init(memory);
+            *self.map.borrow_mut() = Some(btree_map);
+        }
+        
+        std::cell::Ref::map(self.map.borrow(), |opt| opt.as_ref().unwrap())
+    }
+    
+    fn get_or_init_map_mut(&self) -> std::cell::RefMut<StableBTreeMap<K, V, Memory>> {
+        if self.map.borrow().is_none() {
+            let memory = get_memory(self.region);
+            let btree_map = StableBTreeMap::init(memory);
+            *self.map.borrow_mut() = Some(btree_map);
+        }
+        
+        std::cell::RefMut::map(self.map.borrow_mut(), |opt| opt.as_mut().unwrap())
+    }
     
     pub fn insert(&self, key: K, value: V) -> Option<V> {
-        self.map.borrow_mut().insert(key, value)
+        self.get_or_init_map_mut().insert(key, value)
     }
     
     pub fn get(&self, key: &K) -> Option<V> {
-        self.map.borrow().get(key)
+        self.get_or_init_map().get(key)
     }
     
     pub fn get_or_error(&self, key: &K, resource: &str) -> Result<V, ApiError> {
@@ -38,15 +59,15 @@ where
     }
     
     pub fn remove(&self, key: &K) -> Option<V> {
-        self.map.borrow_mut().remove(key)
+        self.get_or_init_map_mut().remove(key)
     }
     
     pub fn contains_key(&self, key: &K) -> bool {
-        self.map.borrow().contains_key(key)
+        self.get_or_init_map().contains_key(key)
     }
     
     pub fn len(&self) -> u64 {
-        self.map.borrow().len()
+        self.get_or_init_map().len()
     }
     
     pub fn is_empty(&self) -> bool {
@@ -54,30 +75,30 @@ where
     }
     
     pub fn clear(&self) {
-        let keys: Vec<K> = self.map.borrow().iter().map(|(k, _)| k).collect();
-        let mut map = self.map.borrow_mut();
+        let keys: Vec<K> = self.get_or_init_map().iter().map(|(k, _)| k).collect();
+        let mut map = self.get_or_init_map_mut();
         for key in keys {
             map.remove(&key);
         }
     }
     
     pub fn keys(&self) -> Vec<K> {
-        self.map.borrow().iter().map(|(k, _)| k).collect()
+        self.get_or_init_map().iter().map(|(k, _)| k).collect()
     }
     
     pub fn values(&self) -> Vec<V> {
-        self.map.borrow().iter().map(|(_, v)| v).collect()
+        self.get_or_init_map().iter().map(|(_, v)| v).collect()
     }
     
     pub fn entries(&self) -> Vec<(K, V)> {
-        self.map.borrow().iter().collect()
+        self.get_or_init_map().iter().collect()
     }
     
     pub fn filter<F>(&self, predicate: F) -> Vec<(K, V)>
     where
         F: Fn(&K, &V) -> bool,
     {
-        self.map.borrow()
+        self.get_or_init_map()
             .iter()
             .filter(|(k, v)| predicate(k, v))
             .collect()
@@ -107,19 +128,19 @@ where
     }
     
     pub fn batch_insert(&self, items: Vec<(K, V)>) {
-        let mut map = self.map.borrow_mut();
+        let mut map = self.get_or_init_map_mut();
         for (key, value) in items {
             map.insert(key, value);
         }
     }
     
     pub fn batch_remove(&self, keys: Vec<K>) -> Vec<Option<V>> {
-        let mut map = self.map.borrow_mut();
+        let mut map = self.get_or_init_map_mut();
         keys.into_iter().map(|key| map.remove(&key)).collect()
     }
     
     pub fn paginate(&self, offset: u64, limit: u64) -> Vec<(K, V)> {
-        self.map.borrow()
+        self.get_or_init_map()
             .iter()
             .skip(offset as usize)
             .take(limit as usize)
@@ -130,6 +151,7 @@ where
         self.region
     }
 }
+
 pub struct IndexedStorage<K, V, I>
 where
     K: Storable + Ord + Clone,
@@ -219,6 +241,47 @@ where
         let count = to_remove.len() as u64;
         self.storage.batch_remove(to_remove);
         count
+    }
+}
+
+use std::sync::Once;
+
+pub struct StorageManager {
+    transaction_storage: StableStorage<u64, crate::models::transaction::TransactionModel>,
+    user_transaction_index: IndexedStorage<u64, crate::models::transaction::TransactionModel, candid::Principal>,
+    balance_storage: StableStorage<candid::Principal, crate::types::transaction::Balance>,
+}
+
+static INIT: Once = Once::new();
+static mut STORAGE_MANAGER: Option<StorageManager> = None;
+
+impl StorageManager {
+    pub fn instance() -> &'static StorageManager {
+        unsafe {
+            INIT.call_once(|| {
+                STORAGE_MANAGER = Some(StorageManager {
+                    transaction_storage: StableStorage::new(MemoryRegion::Transactions),
+                    user_transaction_index: IndexedStorage::new(
+                        MemoryRegion::UserTransactionsData,
+                        MemoryRegion::TransactionIndex,
+                    ),
+                    balance_storage: StableStorage::new(MemoryRegion::Balances),
+                });
+            });
+            STORAGE_MANAGER.as_ref().unwrap()
+        }
+    }
+    
+    pub fn transactions(&self) -> &StableStorage<u64, crate::models::transaction::TransactionModel> {
+        &self.transaction_storage
+    }
+    
+    pub fn user_transactions(&self) -> &IndexedStorage<u64, crate::models::transaction::TransactionModel, candid::Principal> {
+        &self.user_transaction_index
+    }
+    
+    pub fn balances(&self) -> &StableStorage<candid::Principal, crate::types::transaction::Balance> {
+        &self.balance_storage
     }
 }
 

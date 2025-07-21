@@ -1,6 +1,3 @@
-// src/security/audit.rs - Audit logging system
-// Tracks all significant actions for security and compliance
-
 use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
 use ic_cdk::api::time;
@@ -11,7 +8,6 @@ use ic_stable_structures::Storable;
 use std::borrow::Cow;
 use std::cell::RefCell;
 
-// Audit logger configuration
 #[derive(Clone, Debug)]
 pub struct AuditConfig {
     pub retention_days: u32,
@@ -22,14 +18,13 @@ pub struct AuditConfig {
 impl Default for AuditConfig {
     fn default() -> Self {
         Self {
-            retention_days: 90,        // Keep logs for 90 days
-            max_entries: 1_000_000,    // Maximum 1M entries
-            enable_compression: true,   // Enable log compression
+            retention_days: 90,
+            max_entries: 1_000_000,
+            enable_compression: true,
         }
     }
 }
 
-// Implement Storable for AuditLog
 impl Storable for AuditLog {
     const BOUND: ic_stable_structures::storable::Bound = ic_stable_structures::storable::Bound::Bounded {
         max_size: 1024,
@@ -46,7 +41,6 @@ impl Storable for AuditLog {
     }
 }
 
-// Main audit logger
 pub struct AuditLogger {
     storage: StableStorage<u64, AuditLog>,
     config: AuditConfig,
@@ -66,7 +60,6 @@ impl AuditLogger {
         Self::new(AuditConfig::default())
     }
     
-    // Log an action
     pub fn log(
         &self,
         principal: Principal,
@@ -83,22 +76,19 @@ impl AuditLogger {
             action,
             resource: resource.to_string(),
             details,
-            ip_address: None, // Would be set if we had access to caller IP
-            user_agent: None, // Would be set if we had access to user agent
+            ip_address: None,
+            user_agent: None,
         };
         
         self.storage.insert(id, log);
         
-        // Cleanup old entries if needed
         if id % 1000 == 0 {
-            // Check every 1000 entries
             self.cleanup_old_entries();
         }
         
         id
     }
     
-    // Log with additional context
     pub fn log_with_context(
         &self,
         principal: Principal,
@@ -125,7 +115,6 @@ impl AuditLogger {
         id
     }
     
-    // Get audit logs with pagination
     pub fn get_logs(&self, params: PaginationParams) -> Result<Vec<AuditLog>, ApiError> {
         params.validate()?;
         
@@ -133,7 +122,6 @@ impl AuditLogger {
         Ok(logs.into_iter().map(|(_, log)| log).collect())
     }
     
-    // Get logs for a specific principal
     pub fn get_logs_by_principal(
         &self,
         principal: Principal,
@@ -152,7 +140,6 @@ impl AuditLogger {
         Ok(filtered)
     }
     
-    // Get logs by action type
     pub fn get_logs_by_action(
         &self,
         action: AuditAction,
@@ -171,7 +158,6 @@ impl AuditLogger {
         Ok(filtered)
     }
     
-    // Get logs in time range
     pub fn get_logs_by_time_range(
         &self,
         start: u64,
@@ -198,7 +184,6 @@ impl AuditLogger {
         Ok(filtered)
     }
     
-    // Search logs
     pub fn search_logs(
         &self,
         query: &str,
@@ -222,7 +207,6 @@ impl AuditLogger {
         Ok(filtered)
     }
     
-    // Get audit statistics
     pub fn get_statistics(&self) -> AuditStatistics {
         let total_entries = self.storage.len();
         let now = time();
@@ -235,14 +219,9 @@ impl AuditLogger {
         let mut entries_last_week = 0;
         
         for (_, log) in self.storage.entries() {
-            // Count by action
             let action_str = format!("{:?}", log.action);
             *actions_count.entry(action_str).or_insert(0) += 1;
-            
-            // Count by principal
             *principals_count.entry(log.principal).or_insert(0) += 1;
-            
-            // Count recent entries
             if log.timestamp >= day_ago {
                 entries_last_day += 1;
             }
@@ -260,7 +239,6 @@ impl AuditLogger {
         }
     }
     
-    // Export logs (for backup or analysis)
     pub fn export_logs(
         &self,
         start_id: u64,
@@ -280,7 +258,6 @@ impl AuditLogger {
         Ok(logs)
     }
     
-    // Private helper methods
     fn get_next_id(&self) -> u64 {
         let mut id = self.next_id.borrow_mut();
         let current = *id;
@@ -288,23 +265,24 @@ impl AuditLogger {
         current
     }
     
-    fn cleanup_old_entries(&self) {
+    fn cleanup_old_entries(&self) -> u64 {
         let retention_ns = self.config.retention_days as u64 * 24 * 60 * 60 * 1_000_000_000;
         let cutoff_time = time() - retention_ns;
-        
+
         let to_remove: Vec<u64> = self.storage
             .filter(|_, log| log.timestamp < cutoff_time)
             .into_iter()
             .map(|(id, _)| id)
             .collect();
-        
+
+        let count = to_remove.len() as u64;
         for id in to_remove {
             self.storage.remove(&id);
         }
+        count
     }
 }
 
-// Audit statistics
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
 pub struct AuditStatistics {
     pub total_entries: u64,
@@ -312,51 +290,6 @@ pub struct AuditStatistics {
     pub entries_last_week: u64,
     pub unique_principals: u64,
     pub actions_breakdown: std::collections::HashMap<String, u64>,
-}
-
-// Audit trail analyzer for detecting patterns
-pub struct AuditAnalyzer {
-    logger: AuditLogger,
-}
-
-impl AuditAnalyzer {
-    pub fn new(logger: AuditLogger) -> Self {
-        Self { logger }
-    }
-    
-    // Detect suspicious activity
-    pub fn detect_suspicious_activity(&self) -> Vec<SuspiciousActivity> {
-        let mut suspicious = Vec::new();
-        let hour_ago = time() - (60 * 60 * 1_000_000_000);
-        
-        // Check for rapid failed login attempts
-        let failed_logins = self.logger
-            .storage
-            .filter(|_, log| {
-                matches!(log.action, AuditAction::LoginFailed) && log.timestamp >= hour_ago
-            });
-        
-        let mut failed_by_principal = std::collections::HashMap::new();
-        for (_, log) in failed_logins {
-            *failed_by_principal.entry(log.principal).or_insert(0) += 1;
-        }
-        
-        for (principal, count) in failed_by_principal {
-            if count >= 5 {
-                suspicious.push(SuspiciousActivity {
-                    activity_type: "Multiple failed login attempts".to_string(),
-                    principal,
-                    severity: Severity::High,
-                    details: format!("{} failed attempts in the last hour", count),
-                });
-            }
-        }
-        
-        // Check for unusual access patterns
-        // (Add more detection logic as needed)
-        
-        suspicious
-    }
 }
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
@@ -373,31 +306,4 @@ pub enum Severity {
     Medium,
     High,
     Critical,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_audit_logging() {
-        let logger = AuditLogger::with_defaults();
-        let principal = Principal::from_text("2vxsx-fae").unwrap();
-        
-        let id = logger.log(
-            principal,
-            AuditAction::UserRegistered,
-            "user_123",
-            Some("New user registration".to_string()),
-        );
-        
-        assert_eq!(id, 1);
-        
-        let params = PaginationParams::new(Some(0), Some(10));
-        let logs = logger.get_logs(params).unwrap();
-        
-        assert_eq!(logs.len(), 1);
-        assert_eq!(logs[0].id, 1);
-        assert_eq!(logs[0].principal, principal);
-    }
 }

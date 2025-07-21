@@ -1,7 +1,18 @@
-use candid::{candid_method, export_service, Principal};
-use ic_cdk_macros::*;
-use ic_cdk::api::{caller, time};
+use candid::{export_service};
+use ic_cdk_macros::{init, post_upgrade, pre_upgrade, query};
+use ic_cdk::api::time;
 use std::cell::RefCell;
+use std::sync::Once;
+
+pub use types::common::*;
+pub use types::errors::*;
+use crate::types::transaction::*;
+use crate::types::user::*;
+use crate::types::notification::{
+    Notification,
+    NotificationFilter, 
+    NotificationStats
+};
 
 mod types;
 mod models;
@@ -11,29 +22,45 @@ mod security;
 mod utils;
 mod api;
 
-use types::common::*;
-use types::errors::*;
-use types::user::*;
-
 use services::{
-    user_service::UserService
+    user_service::UserService,
+    transaction_service::TransactionService,
+    notification_service::NotificationService,
+    balance_service::BalanceService,
 };
 
 use security::{
     audit::AuditLogger,
 };
 
-
+static STORAGE_INIT: Once = Once::new();
 thread_local! {
     pub static USER_SERVICE: RefCell<UserService> = RefCell::new(UserService::new());
-    pub static AUDIT_LOGGER: RefCell<AuditLogger> = RefCell::new(AuditLogger::with_defaults());
+    pub static TRANSACTION_SERVICE: RefCell<TransactionService> = RefCell::new(TransactionService::new());
+    pub static NOTIFICATION_SERVICE: RefCell<NotificationService> = RefCell::new(NotificationService::new());
+    pub static BALANCE_SERVICE: RefCell<BalanceService> = RefCell::new(BalanceService::new());
     
-    // System state
+    pub static SYSTEM_STATE: RefCell<SystemState> = RefCell::new(SystemState::default());
+    pub static AUDIT_LOGGER: RefCell<AuditLogger> = RefCell::new(AuditLogger::with_defaults());
+
     static INIT_TIMESTAMP: RefCell<u64> = RefCell::new(0);
+}
+
+fn ensure_storage_initialized() {
+    STORAGE_INIT.call_once(|| {
+        let _ = storage::stable_storage::StorageManager::instance();
+        
+        if let Err(e) = storage::memory::utils::validate_memory_regions() {
+            ic_cdk::trap(&format!("Memory region validation failed: {}", e));
+        }
+        
+        ic_cdk::println!("Storage subsystem initialized successfully");
+    });
 }
 
 #[init]
 fn init() {
+    ensure_storage_initialized();
     INIT_TIMESTAMP.with(|t| *t.borrow_mut() = time());
     ic_cdk::println!("Elescrow canister initialized at {}", time());
 }
@@ -45,37 +72,11 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade() {
+    ensure_storage_initialized();
     INIT_TIMESTAMP.with(|t| *t.borrow_mut() = time());
     ic_cdk::println!("Elescrow canister upgraded at {}", time());
 }
 
-#[query]
-#[candid_method(query)]
-fn health_check() -> HealthStatus {
-    HealthStatus {
-        status: "healthy".to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        timestamp: time(),
-        memory_usage: utils::helpers::get_memory_usage(),
-        uptime: time() - INIT_TIMESTAMP.with(|t| *t.borrow()),
-    }
-}
-
-#[query]
-#[candid_method(query)]
-fn get_canister_info() -> CanisterInfo {
-    CanisterInfo {
-        name: "Elescrow Backend".to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        git_commit: option_env!("GIT_COMMIT_HASH").unwrap_or("unknown").to_string(),
-        build_time: option_env!("BUILD_TIME").unwrap_or("unknown").to_string(),
-        memory_usage: utils::helpers::get_memory_usage(),
-        cycle_balance: ic_cdk::api::canister_balance(),
-    }
-}
-
-
-// ===== User Management API =====
 pub use api::user_api::{
     register_user,
     get_current_user,
@@ -89,21 +90,53 @@ pub use api::user_api::{
     is_username_available
 };
 
+pub use api::transaction_api::{
+    create_transaction,
+    approve_transaction,
+    complete_transaction,
+    cancel_transaction,
+    get_transaction,
+    get_my_transactions,
+    // Balance operations
+    deposit,
+    withdraw,
+    get_balance,
+    // Scheduled payments
+    create_scheduled_payment,
+    cancel_scheduled_payment,
+};
+
+pub use api::notification_api::{
+    get_notifications,
+    get_unread_notifications,
+    mark_notification_read,
+    mark_all_notifications_read,
+    archive_notification,
+    get_notification_preferences,
+};
+
+pub use api::admin_api::{
+    admin_freeze_account,
+    admin_unfreeze_account,
+    admin_verify_user,
+    admin_search_users,
+
+    admin_get_transaction,
+    admin_resolve_dispute,
+    admin_reverse_transaction,
+
+    admin_get_audit_logs,
+    admin_update_fee_percentage,
+
+    admin_pause_system,
+    admin_resume_system,
+};
+
 export_service!();
 
 #[query(name = "__get_candid_interface_tmp_hack")]
 fn export_candid() -> String {
     __export_service()
-}
-
-#[derive(Clone, Debug, candid::CandidType, serde::Serialize, serde::Deserialize)]
-pub struct CanisterInfo {
-    pub name: String,
-    pub version: String,
-    pub git_commit: String,
-    pub build_time: String,
-    pub memory_usage: MemoryUsage,
-    pub cycle_balance: u64,
 }
 
 #[cfg(test)]
@@ -120,11 +153,5 @@ mod tests {
         let dir = dir.join("candid");
         std::fs::create_dir_all(&dir).unwrap();
         write(dir.join("elescrow_backend.did"), export_candid()).expect("Write failed.");
-    }
-    
-    #[test]
-    fn test_health_check() {
-        let health = health_check();
-        assert_eq!(health.status, "healthy");
     }
 }

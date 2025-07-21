@@ -142,6 +142,41 @@ pub struct NotificationListResponse {
     pub unread_by_priority: Vec<(NotificationPriority, u64)>,
 }
 
+#[derive(Clone, Debug, CandidType, Serialize, Deserialize, Default)]
+pub struct NotificationStats {
+    pub total_notifications: u64,
+    pub unread_count: u64,
+    pub read_count: u64,
+    pub archived_count: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
+pub struct NotificationPreferences {
+    pub email_enabled: bool,
+    pub sms_enabled: bool,
+    pub push_enabled: bool,
+    pub transaction_alerts: bool,
+    pub security_alerts: bool,
+    pub marketing_emails: bool,
+    pub quiet_hours: QuietHours,
+    pub frequency: NotificationFrequency,
+}
+
+impl Default for NotificationPreferences {
+    fn default() -> Self {
+        Self {
+            email_enabled: true,
+            sms_enabled: false,
+            push_enabled: true,
+            transaction_alerts: true,
+            security_alerts: true,
+            marketing_emails: false,
+            quiet_hours: QuietHours::default(),
+            frequency: NotificationFrequency::Instant,
+        }
+    }
+}
+
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
 pub struct UpdateNotificationPreferences {
     pub email_enabled: Option<bool>,
@@ -161,6 +196,18 @@ pub struct QuietHours {
     pub end_hour: u8,
     pub timezone: String,
     pub exclude_urgent: bool,
+}
+
+impl Default for QuietHours {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            start_hour: 22,
+            end_hour: 8,
+            timezone: "UTC".to_string(),
+            exclude_urgent: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]

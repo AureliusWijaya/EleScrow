@@ -27,9 +27,9 @@ pub struct UserAccount {
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize, PartialEq)]
 pub enum VerificationLevel {
-    Basic,      // Email verified
-    Standard,   // Phone + ID verified
-    Enhanced,   // Full KYC completed
+    Basic,
+    Standard,
+    Enhanced,
 }
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize, PartialEq)]
@@ -67,7 +67,7 @@ pub struct SecuritySettings {
     pub two_factor_enabled: bool,
     pub two_factor_method: Option<TwoFactorMethod>,
     pub allowed_ips: Vec<String>,
-    pub session_timeout: u64, // in nanoseconds
+    pub session_timeout: u64,
     pub require_password_change: bool,
     pub last_password_change: u64,
     pub login_history: Vec<LoginAttempt>,

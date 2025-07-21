@@ -1,11 +1,13 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
 use ic_cdk::api::caller;
+
 use crate::types::{
     errors::ApiError,
     user::*,
     common::PaginationParams
 };
+
 use crate::{USER_SERVICE};
 
 #[update]
@@ -31,8 +33,6 @@ pub fn get_current_user() -> Result<User, ApiError> {
 #[query]
 #[candid_method(query)]
 pub fn get_user_by_principal(principal: candid::Principal) -> Result<User, ApiError> {
-    let caller = caller();
-    
     USER_SERVICE.with(|service| {
         service.borrow().get_user(principal)
     })

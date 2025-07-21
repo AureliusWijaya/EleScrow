@@ -1,10 +1,12 @@
 use candid::Principal;
 use ic_cdk::api::time;
 use std::cell::RefCell;
+
 use crate::types::{
     errors::ApiError,
     user::*,
 };
+
 use crate::models::user::UserModel;
 use crate::storage::{
     stable_storage::StableStorage,
@@ -14,10 +16,10 @@ use crate::security::{
     validation,
     audit::AuditLogger,
 };
+
 use crate::types::common::AuditAction;
 
 pub struct UserService {
-    // Storage
     users: StableStorage<Principal, UserModel>,
     usernames: StableStorage<String, Principal>,
     emails: StableStorage<String, Principal>,
@@ -40,6 +42,11 @@ impl UserService {
         principal: Principal,
         request: RegisterUserRequest,
     ) -> Result<User, ApiError> {
+        if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
+            return Err(ApiError::SystemPaused {
+                reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
+            });
+        }
         // validation::validate_principal(&principal)?;
         validation::validate_username(&request.username)?;
         
@@ -129,6 +136,11 @@ impl UserService {
         principal: Principal,
         request: UpdateProfileRequest,
     ) -> Result<User, ApiError> {
+        if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
+            return Err(ApiError::SystemPaused {
+                reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
+            });
+        }
         let mut user_model = self.users.get_or_error(&principal, "User")?;
         
         if let Some(display_name) = request.display_name {
@@ -213,6 +225,11 @@ impl UserService {
     }
     
     pub fn deactivate_account(&self, principal: Principal) -> Result<(), ApiError> {
+        if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
+            return Err(ApiError::SystemPaused {
+                reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
+            });
+        }
         let mut user_model = self.users.get_or_error(&principal, "User")?;
         
         user_model.account.is_active = false;
@@ -253,56 +270,58 @@ impl UserService {
         
         Ok(())
     }
-    
+
     pub fn search_users(
         &self,
         params: UserSearchParams,
         pagination: crate::types::common::PaginationParams,
     ) -> Result<Vec<User>, ApiError> {
         pagination.validate()?;
-        
+
         let users: Vec<User> = self.users
-            .filter(|_, user| {
+            .entries()
+            .into_iter()
+            .filter_map(|(_, user_model)| {
+                let user: User = user_model.into();
+
                 if let Some(query) = &params.query {
                     let query_lower = query.to_lowercase();
                     if !user.profile.username.to_lowercase().contains(&query_lower) &&
                        !user.profile.display_name.to_lowercase().contains(&query_lower) {
-                        return false;
+                        return None;
                     }
                 }
-                
+
                 if let Some(level) = &params.verification_level {
                     if &user.account.verification_level != level {
-                        return false;
+                        return None;
                     }
                 }
-                
+
                 if let Some(is_active) = params.is_active {
                     if user.account.is_active != is_active {
-                        return false;
+                        return None;
                     }
                 }
-                
+
                 if let Some(created_after) = params.created_after {
                     if user.profile.created_at < created_after {
-                        return false;
+                        return None;
                     }
                 }
-                
+
                 if let Some(created_before) = params.created_before {
                     if user.profile.created_at > created_before {
-                        return false;
+                        return None;
                     }
                 }
-                
-                true
+
+                Some(user)
             })
-            .into_iter()
-            .map(|(_, user)| user.into())
             .skip(pagination.offset as usize)
             .take(pagination.limit as usize)
             .collect();
-        
+
         Ok(users)
     }
     
@@ -353,6 +372,30 @@ impl UserService {
         Ok(())
     }
     
+    pub fn admin_update_verification_status(
+        &self,
+        user_principal: Principal,
+        verification_level: VerificationLevel,
+        admin_principal: Principal,
+    ) -> Result<User, ApiError> {
+        let mut user = self.get_user(user_principal)?;
+
+        user.account.is_verified = true;
+        user.account.verification_level = verification_level.clone();
+        user.profile.updated_at = time();
+
+        self.users.insert(user_principal, user.clone().into());
+
+        self.audit_logger.borrow().log(
+            admin_principal,
+            AuditAction::KycStatusUpdated,
+            &user_principal.to_string(),
+            Some(format!("User verified to level: {:?}", verification_level)),
+        );
+
+        Ok(user)
+    }
+
     pub fn get_user_statistics(&self) -> UserStatistics {
         let total_users = self.users.len();
         let now = time();

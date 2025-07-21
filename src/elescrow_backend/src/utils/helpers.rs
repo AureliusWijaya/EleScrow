@@ -3,7 +3,7 @@ use crate::types::common::MemoryUsage;
 
 pub fn get_memory_usage() -> MemoryUsage {
     let heap_size = get_heap_memory_size();
-    let stable_size = (stable64_size() * 65536) as u64; // Convert pages to bytes
+    let stable_size = (stable64_size() * 65536) as u64;
     
     MemoryUsage {
         heap_size,
@@ -13,7 +13,7 @@ pub fn get_memory_usage() -> MemoryUsage {
 }
 
 fn get_heap_memory_size() -> u64 {
-    1024 * 1024 * 100 // 100MB estimate
+    1024 * 1024 * 100
 }
 
 pub fn format_principal_short(principal: &candid::Principal) -> String {

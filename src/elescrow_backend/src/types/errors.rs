@@ -1,4 +1,4 @@
-use candid::{CandidType, Principal};
+use candid::{CandidType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, CandidType, Serialize, Deserialize)]
@@ -58,6 +58,9 @@ pub enum ApiError {
         reason: String 
     },
     AccountNotVerified,
+    SystemPaused { 
+        reason: String 
+    },
 }
 
 impl ApiError {
@@ -107,6 +110,9 @@ impl ApiError {
             
             ApiError::AccountNotVerified => 
                 "Account not verified".to_string(),
+
+            ApiError::SystemPaused { reason } => 
+                format!("System is paused: {}", reason),
         }
     }
     
@@ -127,6 +133,7 @@ impl ApiError {
             ApiError::RateLimited { .. } => "RATE_LIMITED",
             ApiError::AccountFrozen { .. } => "ACCOUNT_FROZEN",
             ApiError::AccountNotVerified => "ACCOUNT_NOT_VERIFIED",
+            ApiError::SystemPaused { .. } => "SYSTEM_PAUSED",
         }
     }
     
