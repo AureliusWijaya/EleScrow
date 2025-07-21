@@ -11,7 +11,7 @@ function Navbar(): JSX.Element {
 
   // Unauthorized
   return (
-    <div className="flex w-full items-center justify-between py-5 px-7 bg-[#070312] border-[#3F3D3D] border-b fixed z-50">
+    <div className="flex w-full items-center justify-between py-5 px-7 bg-[#070312] border-[#3F3D3D] border-b z-50 mb-50">
       <Link to="/" className="text-3xl">
         EleScrow
       </Link>
