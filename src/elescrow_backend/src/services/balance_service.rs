@@ -30,7 +30,7 @@ impl BalanceService {
         }
     }
     
-    pub fn get_or_create_balance(&self, principal: Principal) -> Balance {
+    pub fn get_or_create_balance(&mut self, principal: Principal) -> Balance {
         self.balances.get(&principal).unwrap_or_else(|| Balance {
             principal,
             currency: Currency::ICP,
@@ -45,12 +45,12 @@ impl BalanceService {
         })
     }
     
-    pub fn get_balance(&self, principal: Principal) -> Result<Balance, ApiError> {
+    pub fn get_balance(&mut self, principal: Principal) -> Result<Balance, ApiError> {
         validation::validate_principal(&principal)?;
         Ok(self.get_or_create_balance(principal))
     }
 
-    pub fn deposit(&self, principal: Principal, amount: u64) -> Result<u64, ApiError> {
+    pub fn deposit(&mut self, principal: Principal, amount: u64) -> Result<u64, ApiError> {
         if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
             return Err(ApiError::SystemPaused {
                 reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
@@ -83,7 +83,7 @@ impl BalanceService {
         Ok(balance.available)
     }
 
-    pub fn withdraw(&self, principal: Principal, amount: u64) -> Result<u64, ApiError> {
+    pub fn withdraw(&mut self, principal: Principal, amount: u64) -> Result<u64, ApiError> {
         if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
             return Err(ApiError::SystemPaused {
                 reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
@@ -120,7 +120,7 @@ impl BalanceService {
     }
     
     pub fn credit_funds(
-        &self,
+        &mut self,
         principal: Principal,
         amount: u64,
         transaction_id: u64,
@@ -155,7 +155,7 @@ impl BalanceService {
     }
     
     pub fn debit_funds(
-        &self,
+        &mut self,
         principal: Principal,
         amount: u64,
         transaction_id: u64,
@@ -193,7 +193,7 @@ impl BalanceService {
     }
     
     pub fn lock_funds(
-        &self,
+        &mut self,
         principal: Principal,
         amount: u64,
         transaction_id: u64,
@@ -224,7 +224,7 @@ impl BalanceService {
     }
 
     pub fn unlock_funds(
-        &self,
+        &mut self,
         principal: Principal,
         amount: u64,
         transaction_id: u64,
@@ -254,7 +254,7 @@ impl BalanceService {
     }
 
     pub fn transfer_locked_funds(
-        &self,
+        &mut self,
         from: Principal,
         to: Principal,
         amount: u64,
@@ -350,7 +350,7 @@ impl BalanceService {
     }
 
     fn record_history(
-        &self,
+        &mut self,
         principal: Principal,
         balance_before: u64,
         balance_after: u64,
@@ -365,7 +365,7 @@ impl BalanceService {
             balance_after,
             change,
             transaction_id,
-            transaction_type: crate::types::transaction::TransactionType::DirectPayment, // Simplified
+            transaction_type: crate::types::transaction::TransactionType::DirectPayment,
             description: description.to_string(),
         };
         

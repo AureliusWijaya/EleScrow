@@ -77,60 +77,13 @@ fn post_upgrade() {
     ic_cdk::println!("Elescrow canister upgraded at {}", time());
 }
 
-pub use api::user_api::{
-    register_user,
-    get_current_user,
-    get_user_by_principal,
-    get_user_by_username,
-    update_profile,
-    update_notification_preferences,
-    update_security_settings,
-    deactivate_account,
-    search_users,
-    is_username_available
-};
+pub use api::user_api::*;
 
-pub use api::transaction_api::{
-    create_transaction,
-    approve_transaction,
-    complete_transaction,
-    cancel_transaction,
-    get_transaction,
-    get_my_transactions,
-    // Balance operations
-    deposit,
-    withdraw,
-    get_balance,
-    // Scheduled payments
-    create_scheduled_payment,
-    cancel_scheduled_payment,
-};
+pub use api::transaction_api::*;
 
-pub use api::notification_api::{
-    get_notifications,
-    get_unread_notifications,
-    mark_notification_read,
-    mark_all_notifications_read,
-    archive_notification,
-    get_notification_preferences,
-};
+pub use api::notification_api::*;
 
-pub use api::admin_api::{
-    admin_freeze_account,
-    admin_unfreeze_account,
-    admin_verify_user,
-    admin_search_users,
-
-    admin_get_transaction,
-    admin_resolve_dispute,
-    admin_reverse_transaction,
-
-    admin_get_audit_logs,
-    admin_update_fee_percentage,
-
-    admin_pause_system,
-    admin_resume_system,
-};
+pub use api::admin_api::*;
 
 export_service!();
 

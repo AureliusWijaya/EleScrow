@@ -261,10 +261,10 @@ type RelatedResource = variant {
   Dispute : nat64;
   ExternalUrl : text;
 };
-type Result = variant { Ok; Err : ApiError };
-type Result_1 = variant { Ok : vec AuditLog; Err : ApiError };
+type Result = variant { Ok : Transaction; Err : ApiError };
+type Result_1 = variant { Ok; Err : ApiError };
 type Result_10 = variant { Ok : ListResponse; Err : ApiError };
-type Result_2 = variant { Ok : Transaction; Err : ApiError };
+type Result_2 = variant { Ok : vec AuditLog; Err : ApiError };
 type Result_3 = variant { Ok : vec User; Err : ApiError };
 type Result_4 = variant { Ok : Notification; Err : ApiError };
 type Result_5 = variant { Ok : nat64; Err : ApiError };
@@ -363,6 +363,7 @@ type TransactionStatus = variant {
     resolved_by : principal;
   };
   Completed;
+  SubmittedForReview : record { submitted_at : nat64 };
   Pending;
 };
 type TransactionType = variant {
@@ -422,29 +423,29 @@ type UserSearchParams = record {
 };
 type VerificationLevel = variant { Enhanced; Basic; Standard };
 service : () -> {
-  admin_freeze_account : (principal, text) -> (Result);
-  admin_get_audit_logs : (PaginationParams) -> (Result_1) query;
-  admin_get_transaction : (nat64) -> (Result_2) query;
-  admin_pause_system : (text) -> (Result);
-  admin_resolve_dispute : (nat64, DisputeResolution) -> (Result_2);
-  admin_resume_system : () -> (Result);
-  admin_reverse_transaction : (nat64, text) -> (Result_2);
+  accept_escrow_terms : (nat64) -> (Result);
+  admin_freeze_account : (principal, text) -> (Result_1);
+  admin_get_audit_logs : (PaginationParams) -> (Result_2) query;
+  admin_get_transaction : (nat64) -> (Result) query;
+  admin_pause_system : (text) -> (Result_1);
+  admin_resume_system : () -> (Result_1);
+  admin_reverse_transaction : (nat64, text) -> (Result);
   admin_search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
-  admin_unfreeze_account : (principal) -> (Result);
-  admin_update_fee_percentage : (nat64) -> (Result);
-  admin_verify_user : (principal, VerificationLevel) -> (Result);
-  approve_transaction : (nat64) -> (Result_2);
+  admin_unfreeze_account : (principal) -> (Result_1);
+  admin_update_fee_percentage : (nat64) -> (Result_1);
+  admin_verify_user : (principal, VerificationLevel) -> (Result_1);
+  approve_transaction : (nat64) -> (Result);
   archive_notification : (nat64) -> (Result_4);
-  cancel_scheduled_payment : (nat64) -> (Result_2);
-  cancel_transaction : (nat64, text) -> (Result_2);
+  cancel_scheduled_payment : (nat64) -> (Result);
+  cancel_transaction : (nat64, text) -> (Result);
   cleanup_expired_notifications : () -> (Result_5);
-  complete_transaction : (nat64) -> (Result_2);
+  complete_transaction : (nat64) -> (Result);
   create_scheduled_payment : (principal, nat64, PaymentSchedule, text) -> (
-      Result_2,
+      Result,
     );
-  create_transaction : (CreateTransactionRequest) -> (Result_2);
-  deactivate_account : () -> (Result);
-  deposit : (nat64) -> (Result_6);
+  create_transaction : (CreateTransactionRequest) -> (Result);
+  deactivate_account : () -> (Result_1);
+  deposit : (nat64) -> (Result_5);
   get_balance : () -> (Result_6) query;
   get_current_user : () -> (Result_7) query;
   get_my_transactions : (opt TransactionFilter, PaginationParams) -> (
@@ -456,7 +457,7 @@ service : () -> {
   get_notifications : (opt NotificationFilter, PaginationParams) -> (
       Result_10,
     ) query;
-  get_transaction : (nat64) -> (Result_2) query;
+  get_transaction : (nat64) -> (Result) query;
   get_unread_count : () -> (nat64) query;
   get_unread_notifications : (PaginationParams) -> (Result_10) query;
   get_user_by_principal : (principal) -> (Result_7) query;
@@ -466,8 +467,9 @@ service : () -> {
   mark_notification_read : (nat64) -> (Result_4);
   register_user : (RegisterUserRequest) -> (Result_7);
   search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
+  submit_escrow_work : (nat64) -> (Result);
   update_notification_preferences : (NotificationPreferences) -> (Result_7);
   update_profile : (UpdateProfileRequest) -> (Result_7);
   update_security_settings : (SecuritySettings) -> (Result_7);
-  withdraw : (nat64) -> (Result_6);
+  withdraw : (nat64) -> (Result_5);
 }

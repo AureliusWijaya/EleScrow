@@ -6,7 +6,7 @@ use crate::types::{
     transaction::*,
     common::PaginationParams,
 };
-use crate::{TRANSACTION_SERVICE};
+use crate::{TRANSACTION_SERVICE, BALANCE_SERVICE};
 
 #[update]
 #[candid_method(update)]
@@ -15,6 +15,26 @@ pub async fn create_transaction(request: CreateTransactionRequest) -> Result<Tra
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().create_transaction(caller, request)
+    })
+}
+
+#[update]
+#[candid_method(update)]
+pub fn accept_escrow_terms(transaction_id: u64) -> Result<Transaction, ApiError> {
+    let caller = caller();
+    
+    TRANSACTION_SERVICE.with(|service| {
+        service.borrow_mut().accept_escrow_terms(transaction_id, caller)
+    })
+}
+
+#[update]
+#[candid_method(update)]
+pub fn submit_escrow_work(transaction_id: u64) -> Result<Transaction, ApiError> {
+    let caller = caller();
+    
+    TRANSACTION_SERVICE.with(|service| {
+        service.borrow_mut().submit_escrow_work(transaction_id, caller)
     })
 }
 
@@ -76,28 +96,28 @@ pub fn get_my_transactions(
 pub fn get_balance() -> Result<Balance, ApiError> {
     let caller = caller();
     
-    TRANSACTION_SERVICE.with(|service| {
-        Ok(service.borrow().get_balance(caller))
+    BALANCE_SERVICE.with(|service| {
+        service.borrow_mut().get_balance(caller)
     })
 }
 
 #[update]
 #[candid_method(update)]
-pub async fn deposit(amount: u64) -> Result<Balance, ApiError> {
+pub async fn deposit(amount: u64) -> Result<u64, ApiError> {
     let caller = caller();
     
-    TRANSACTION_SERVICE.with(|service| {
-        service.borrow().deposit(caller, amount)
+    BALANCE_SERVICE.with(|service| {
+        service.borrow_mut().deposit(caller, amount)
     })
 }
 
 #[update]
 #[candid_method(update)]
-pub async fn withdraw(amount: u64) -> Result<Balance, ApiError> {
+pub async fn withdraw(amount: u64) -> Result<u64, ApiError> {
     let caller = caller();
     
-    TRANSACTION_SERVICE.with(|service| {
-        service.borrow().withdraw(caller, amount)
+    BALANCE_SERVICE.with(|service| {
+        service.borrow_mut().withdraw(caller, amount)
     })
 }
 

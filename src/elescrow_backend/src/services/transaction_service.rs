@@ -13,6 +13,7 @@ use crate::security::{
     audit::AuditLogger,
 };
 use crate::services::notification_service::NotificationService;
+use crate::BALANCE_SERVICE;
 
 pub struct TransactionService {
     next_id: RefCell<u64>,
@@ -66,7 +67,7 @@ impl TransactionService {
             });
         }
 
-        let balance = self.get_or_create_balance(from);
+        let balance = BALANCE_SERVICE.with(|s| s.borrow_mut().get_balance(from))?;
         let fee = self.calculate_fee(request.amount);
         let total_amount = request.amount + fee;
         
@@ -77,7 +78,12 @@ impl TransactionService {
             });
         }
 
-        self.lock_funds(from, total_amount)?;
+        let id = self.get_next_id();
+
+        BALANCE_SERVICE.with(|s| {
+            s.borrow_mut()
+                .lock_funds(from, total_amount, id)
+        })?;
 
         if let Some(deadline) = request.deadline {
             validation::validate_timestamp(deadline, "deadline")?;
@@ -89,7 +95,6 @@ impl TransactionService {
             }
         }
         
-        let id = self.get_next_id();
         let now = time();
         
         let transaction_model = TransactionModel {
@@ -180,6 +185,76 @@ impl TransactionService {
         
         Ok(transaction.into())
     }
+
+    pub fn accept_escrow_terms(
+        &mut self,
+        transaction_id: u64,
+        acceptor: Principal,
+    ) -> Result<Transaction, ApiError> {
+        let mut transaction = self.get_transaction_model(transaction_id)?;
+
+        if transaction.to != acceptor {
+            return Err(ApiError::Unauthorized {
+                reason: "Only the recipient (User B) can accept the escrow terms.".to_string(),
+            });
+        }
+
+        if !matches!(transaction.status, TransactionStatus::Pending) {
+            return Err(ApiError::InvalidState {
+                current_state: format!("{:?}", transaction.status),
+                required_state: "Pending".to_string(),
+            });
+        }
+
+        transaction.status = TransactionStatus::InEscrow;
+        transaction.updated_at = time();
+        
+        self.storage().transactions().insert(transaction_id, transaction.clone());
+
+        let _ = self.notification_service.borrow().create_transaction_notification(
+            transaction.from,
+            transaction_id,
+            "Escrow terms have been accepted.",
+        );
+
+        Ok(transaction.into())
+    }
+
+    pub fn submit_escrow_work(
+        &mut self,
+        transaction_id: u64,
+        submitter: Principal,
+    ) -> Result<Transaction, ApiError> {
+        let mut transaction = self.get_transaction_model(transaction_id)?;
+
+        if transaction.to != submitter {
+            return Err(ApiError::Unauthorized {
+                reason: "Only the recipient (User B) can submit work for this escrow.".to_string(),
+            });
+        }
+
+        if !matches!(transaction.status, TransactionStatus::InEscrow) {
+            return Err(ApiError::InvalidState {
+                current_state: format!("{:?}", transaction.status),
+                required_state: "InEscrow".to_string(),
+            });
+        }
+
+        transaction.status = TransactionStatus::SubmittedForReview {
+            submitted_at: time(),
+        };
+        transaction.updated_at = time();
+        
+        self.storage().transactions().insert(transaction_id, transaction.clone());
+
+        let _ = self.notification_service.borrow().create_transaction_notification(
+            transaction.from,
+            transaction_id,
+            "Work has been submitted for your review.",
+        );
+
+        Ok(transaction.into())
+    }
     
     pub fn complete_transaction(
         &mut self,
@@ -197,33 +272,29 @@ impl TransactionService {
                         transaction.to == completer ||
                         transaction.escrow_agent == Some(completer);
         
-        if !authorized {
+        if transaction.from != completer {
             return Err(ApiError::Unauthorized {
-                reason: "Not authorized to complete this transaction".to_string(),
+                reason: "Only the sender (User A) can release the funds for this escrow.".to_string(),
             });
         }
 
-        if !matches!(transaction.status, TransactionStatus::Approved) && !matches!(transaction.status, TransactionStatus::InEscrow) {
+        if !matches!(transaction.status, TransactionStatus::SubmittedForReview { .. }) {
             return Err(ApiError::InvalidState {
                 current_state: format!("{:?}", transaction.status),
-                required_state: "Approved or InEscrow".to_string(),
+                required_state: "SubmittedForReview".to_string(),
             });
         }
 
-        match &transaction.transaction_type {
-            TransactionType::Escrow { .. } => {
-                self.unlock_funds(transaction.from, transaction.amount + transaction.fee)?;
-                self.credit_funds(transaction.to, transaction.amount)?;
-                if let Some(agent) = transaction.escrow_agent {
-                    self.credit_funds(agent, transaction.fee)?;
-                }
-            }
-            TransactionType::DirectPayment => {
-                self.debit_funds(transaction.from, transaction.amount + transaction.fee)?;
-                self.credit_funds(transaction.to, transaction.amount)?;
-            }
-            _ => {}
-        }
+        let total_amount = transaction.amount + transaction.fee;
+        BALANCE_SERVICE.with(|s| {
+            s.borrow_mut().transfer_locked_funds(
+                transaction.from,
+                transaction.to,
+                transaction.amount,
+                transaction_id,
+                "Transaction completed",
+            )
+        })?;
         
         transaction.status = TransactionStatus::Completed;
         transaction.completed_at = Some(time());
@@ -231,7 +302,7 @@ impl TransactionService {
         
         self.storage().transactions().insert(transaction_id, transaction.clone());
         
-        self.update_balance_statistics(&transaction);
+        // self.update_balance_statistics(&transaction);
         
         self.notification_service.borrow().create_transaction_notification(
             transaction.from,
@@ -281,7 +352,10 @@ impl TransactionService {
         }
 
         let total_amount = transaction.amount + transaction.fee;
-        self.unlock_funds(transaction.from, total_amount)?;
+        BALANCE_SERVICE.with(|s| {
+            s.borrow_mut()
+                .unlock_funds(transaction.from, total_amount, transaction_id)
+        })?;
 
         transaction.status = TransactionStatus::Cancelled {
             reason: reason.clone(),
@@ -367,129 +441,129 @@ impl TransactionService {
         Ok(transactions)
     }
     
-    fn credit_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
-        let mut balance = self.get_or_create_balance(principal);
+    // fn credit_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
+    //     let mut balance = self.get_or_create_balance(principal);
         
-        balance.available += amount;
-        balance.updated_at = time();
+    //     balance.available += amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance);
-        Ok(())
-    }
+    //     self.storage().balances().insert(principal, balance);
+    //     Ok(())
+    // }
     
-    fn update_balance_statistics(&self, transaction: &TransactionModel) {
-        if let Some(mut balance) = self.storage().balances().get(&transaction.from) {
-            balance.total_sent += transaction.amount;
-            balance.last_transaction_id = Some(transaction.id);
-            self.storage().balances().insert(transaction.from, balance);
-        }
+    // fn update_balance_statistics(&self, transaction: &TransactionModel) {
+    //     if let Some(mut balance) = self.storage().balances().get(&transaction.from) {
+    //         balance.total_sent += transaction.amount;
+    //         balance.last_transaction_id = Some(transaction.id);
+    //         self.storage().balances().insert(transaction.from, balance);
+    //     }
         
-        if let Some(mut balance) = self.storage().balances().get(&transaction.to) {
-            balance.total_received += transaction.amount;
-            balance.last_transaction_id = Some(transaction.id);
-            self.storage().balances().insert(transaction.to, balance);
-        }
-    }
+    //     if let Some(mut balance) = self.storage().balances().get(&transaction.to) {
+    //         balance.total_received += transaction.amount;
+    //         balance.last_transaction_id = Some(transaction.id);
+    //         self.storage().balances().insert(transaction.to, balance);
+    //     }
+    // }
     
-    pub fn get_balance(&self, principal: Principal) -> Balance {
-        self.get_or_create_balance(principal)
-    }
+    // pub fn get_balance(&self, principal: Principal) -> Balance {
+    //     self.get_or_create_balance(principal)
+    // }
     
-    pub fn deposit(&self, principal: Principal, amount: u64) -> Result<Balance, ApiError> {
-        validation::validate_amount(amount, Some(self.min_transaction_amount), None)?;
+    // pub fn deposit(&self, principal: Principal, amount: u64) -> Result<Balance, ApiError> {
+    //     validation::validate_amount(amount, Some(self.min_transaction_amount), None)?;
         
-        let mut balance = self.get_or_create_balance(principal);
-        balance.available += amount;
-        balance.total_received += amount;
-        balance.updated_at = time();
+    //     let mut balance = self.get_or_create_balance(principal);
+    //     balance.available += amount;
+    //     balance.total_received += amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance.clone());
+    //     self.storage().balances().insert(principal, balance.clone());
         
-        self.audit_logger.borrow().log(
-            principal,
-            AuditAction::Deposit,
-            &principal.to_text(),
-            Some(format!("Amount: {}", amount)),
-        );
+    //     self.audit_logger.borrow().log(
+    //         principal,
+    //         AuditAction::Deposit,
+    //         &principal.to_text(),
+    //         Some(format!("Amount: {}", amount)),
+    //     );
         
-        Ok(balance)
-    }
+    //     Ok(balance)
+    // }
     
-    pub fn withdraw(&self, principal: Principal, amount: u64) -> Result<Balance, ApiError> {
-        validation::validate_amount(amount, Some(self.min_transaction_amount), None)?;
+    // pub fn withdraw(&self, principal: Principal, amount: u64) -> Result<Balance, ApiError> {
+    //     validation::validate_amount(amount, Some(self.min_transaction_amount), None)?;
         
-        let mut balance = self.get_or_create_balance(principal);
+    //     let mut balance = self.get_or_create_balance(principal);
         
-        if balance.available < amount {
-            return Err(ApiError::InsufficientFunds {
-                available: balance.available,
-                required: amount,
-            });
-        }
+    //     if balance.available < amount {
+    //         return Err(ApiError::InsufficientFunds {
+    //             available: balance.available,
+    //             required: amount,
+    //         });
+    //     }
         
-        balance.available -= amount;
-        balance.updated_at = time();
+    //     balance.available -= amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance.clone());
+    //     self.storage().balances().insert(principal, balance.clone());
         
-        self.audit_logger.borrow().log(
-            principal,
-            AuditAction::Withdrawal,
-            &principal.to_text(),
-            Some(format!("Amount: {}", amount)),
-        );
+    //     self.audit_logger.borrow().log(
+    //         principal,
+    //         AuditAction::Withdrawal,
+    //         &principal.to_text(),
+    //         Some(format!("Amount: {}", amount)),
+    //     );
         
-        Ok(balance)
-    }
+    //     Ok(balance)
+    // }
 
-    pub fn resolve_dispute(
-        &self,
-        transaction_id: u64,
-        resolution: DisputeResolution,
-        admin_principal: Principal
-    ) -> Result<Transaction, ApiError> {
-        if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
-            return Err(ApiError::SystemPaused {
-                reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
-            });
-        }
-        let mut transaction = self.get_transaction_model(transaction_id)?;
+    // pub fn resolve_dispute(
+    //     &self,
+    //     transaction_id: u64,
+    //     resolution: DisputeResolution,
+    //     admin_principal: Principal
+    // ) -> Result<Transaction, ApiError> {
+    //     if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
+    //         return Err(ApiError::SystemPaused {
+    //             reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
+    //         });
+    //     }
+    //     let mut transaction = self.get_transaction_model(transaction_id)?;
 
-        if !matches!(transaction.status, TransactionStatus::Disputed { .. }) {
-            return Err(ApiError::InvalidState {
-                current_state: format!("{:?}", transaction.status),
-                required_state: "Disputed".to_string(),
-            });
-        }
+    //     if !matches!(transaction.status, TransactionStatus::Disputed { .. }) {
+    //         return Err(ApiError::InvalidState {
+    //             current_state: format!("{:?}", transaction.status),
+    //             required_state: "Disputed".to_string(),
+    //         });
+    //     }
 
-        match resolution {
-            DisputeResolution::ReleaseToRecipient => {
-                self.credit_funds(transaction.to, transaction.amount)?;
-            }
-            DisputeResolution::RefundToSender => {
-                self.credit_funds(transaction.from, transaction.amount)?;
-            }
-            DisputeResolution::SplitBetweenParties { sender_percentage } => {
-                let recipient_percentage = 100 - sender_percentage;
-                let recipient_amount = transaction.amount * recipient_percentage as u64 / 100;
-                let sender_amount = transaction.amount - recipient_amount;
+    //     match resolution {
+    //         DisputeResolution::ReleaseToRecipient => {
+    //             self.credit_funds(transaction.to, transaction.amount)?;
+    //         }
+    //         DisputeResolution::RefundToSender => {
+    //             self.credit_funds(transaction.from, transaction.amount)?;
+    //         }
+    //         DisputeResolution::SplitBetweenParties { sender_percentage } => {
+    //             let recipient_percentage = 100 - sender_percentage;
+    //             let recipient_amount = transaction.amount * recipient_percentage as u64 / 100;
+    //             let sender_amount = transaction.amount - recipient_amount;
 
-                self.credit_funds(transaction.to, recipient_amount)?;
-                self.credit_funds(transaction.from, sender_amount)?;
-            }
-        }
+    //             self.credit_funds(transaction.to, recipient_amount)?;
+    //             self.credit_funds(transaction.from, sender_amount)?;
+    //         }
+    //     }
 
-        transaction.status = TransactionStatus::Resolved {
-            resolution: resolution.clone(),
-            resolved_by: admin_principal,
-            resolved_at: time()
-        };
-        transaction.updated_at = time();
+    //     transaction.status = TransactionStatus::Resolved {
+    //         resolution: resolution.clone(),
+    //         resolved_by: admin_principal,
+    //         resolved_at: time()
+    //     };
+    //     transaction.updated_at = time();
 
-        self.storage().transactions().insert(transaction_id, transaction.clone());
+    //     self.storage().transactions().insert(transaction_id, transaction.clone());
 
-        Ok(transaction.into())
-    }
+    //     Ok(transaction.into())
+    // }
     
     pub fn reverse_transaction(
         &self,
@@ -571,70 +645,70 @@ impl TransactionService {
         self.storage().transactions().get_or_error(&id, &format!("Transaction {}", id))
     }
     
-    fn get_or_create_balance(&self, principal: Principal) -> Balance {
-        self.storage().balances().get(&principal).unwrap_or_else(|| Balance {
-            principal,
-            currency: Currency::ICP,
-            available: 0,
-            locked: 0,
-            pending_incoming: 0,
-            pending_outgoing: 0,
-            total_received: 0,
-            total_sent: 0,
-            last_transaction_id: None,
-            updated_at: time(),
-        })
-    }
+    // fn get_or_create_balance(&self, principal: Principal) -> Balance {
+    //     self.storage().balances().get(&principal).unwrap_or_else(|| Balance {
+    //         principal,
+    //         currency: Currency::ICP,
+    //         available: 0,
+    //         locked: 0,
+    //         pending_incoming: 0,
+    //         pending_outgoing: 0,
+    //         total_received: 0,
+    //         total_sent: 0,
+    //         last_transaction_id: None,
+    //         updated_at: time(),
+    //     })
+    // }
     
-    fn lock_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
-        let mut balance = self.get_or_create_balance(principal);
+    // fn lock_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
+    //     let mut balance = self.get_or_create_balance(principal);
         
-        if balance.available < amount {
-            return Err(ApiError::InsufficientFunds {
-                available: balance.available,
-                required: amount,
-            });
-        }
+    //     if balance.available < amount {
+    //         return Err(ApiError::InsufficientFunds {
+    //             available: balance.available,
+    //             required: amount,
+    //         });
+    //     }
         
-        balance.available -= amount;
-        balance.locked += amount;
-        balance.updated_at = time();
+    //     balance.available -= amount;
+    //     balance.locked += amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance);
-        Ok(())
-    }
+    //     self.storage().balances().insert(principal, balance);
+    //     Ok(())
+    // }
     
-    fn unlock_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
-        let mut balance = self.get_or_create_balance(principal);
+    // fn unlock_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
+    //     let mut balance = self.get_or_create_balance(principal);
         
-        if balance.locked < amount {
-            return Err(ApiError::InternalError {
-                details: "Insufficient locked funds".to_string(),
-            });
-        }
+    //     if balance.locked < amount {
+    //         return Err(ApiError::InternalError {
+    //             details: "Insufficient locked funds".to_string(),
+    //         });
+    //     }
         
-        balance.locked -= amount;
-        balance.available += amount;
-        balance.updated_at = time();
+    //     balance.locked -= amount;
+    //     balance.available += amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance);
-        Ok(())
-    }
+    //     self.storage().balances().insert(principal, balance);
+    //     Ok(())
+    // }
     
-    fn debit_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
-        let mut balance = self.get_or_create_balance(principal);
+    // fn debit_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
+    //     let mut balance = self.get_or_create_balance(principal);
         
-        if balance.available < amount {
-            return Err(ApiError::InsufficientFunds {
-                available: balance.available,
-                required: amount,
-            });
-        }
+    //     if balance.available < amount {
+    //         return Err(ApiError::InsufficientFunds {
+    //             available: balance.available,
+    //             required: amount,
+    //         });
+    //     }
         
-        balance.available -= amount;
-        balance.updated_at = time();
+    //     balance.available -= amount;
+    //     balance.updated_at = time();
         
-        self.storage().balances().insert(principal, balance);
-        Ok(())
-    }
+    //     self.storage().balances().insert(principal, balance);
+    //     Ok(())
+    // }
 }

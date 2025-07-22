@@ -52,6 +52,10 @@ pub enum TransactionStatus {
     Approved,
     Processing,
     InEscrow,
+
+    SubmittedForReview {
+        submitted_at: u64,
+    },
     
     Completed,
     Cancelled {

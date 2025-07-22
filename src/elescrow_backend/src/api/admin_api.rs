@@ -90,19 +90,19 @@ pub fn admin_get_transaction(transaction_id: u64) -> Result<Transaction, ApiErro
     })
 }
 
-#[update]
-#[candid_method(update)]
-pub fn admin_resolve_dispute(
-    transaction_id: u64,
-    resolution: DisputeResolution
-) -> Result<Transaction, ApiError> {
-    let caller = caller();
-    ensure_admin(caller)?;
+// #[update]
+// #[candid_method(update)]
+// pub fn admin_resolve_dispute(
+//     transaction_id: u64,
+//     resolution: DisputeResolution
+// ) -> Result<Transaction, ApiError> {
+//     let caller = caller();
+//     ensure_admin(caller)?;
     
-    TRANSACTION_SERVICE.with(|service| {
-        service.borrow().resolve_dispute(transaction_id, resolution, caller)
-    })
-}
+//     TRANSACTION_SERVICE.with(|service| {
+//         service.borrow().resolve_dispute(transaction_id, resolution, caller)
+//     })
+// }
 
 #[update]
 #[candid_method(update)]
