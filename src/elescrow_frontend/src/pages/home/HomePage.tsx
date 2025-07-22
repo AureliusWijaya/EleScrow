@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Button from "../shared/components/Button";
+import Button from "../../shared/components/Button";
 import { Stepper } from "@mantine/core";
 
 function HomePage(): JSX.Element {
