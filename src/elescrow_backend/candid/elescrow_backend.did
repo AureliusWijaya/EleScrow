@@ -1,0 +1,32 @@
+type CanisterInfo = record {
+  name : text;
+  version : text;
+  total_memory_usage : nat64;
+  modules : vec text;
+};
+type Message = record {
+  id : nat64;
+  to : principal;
+  from : principal;
+  read : bool;
+  "text" : text;
+  timestamp : nat64;
+};
+type PaginationParams = record { offset : opt nat64; limit : opt nat64 };
+type PostResult = variant { Ok; Err : text };
+service : () -> {
+  __candid_method_get_canister_info : () -> (CanisterInfo) query;
+  __candid_method_get_conversation_chunk : (principal, PaginationParams) -> (
+      vec Message,
+    ) query;
+  __candid_method_get_message_count : () -> (nat64) query;
+  __candid_method_health_check : () -> (bool) query;
+  __candid_method_mark_message_read : (nat64) -> (PostResult);
+  __candid_method_post_message : (principal, text) -> (PostResult);
+  get_canister_info : () -> (CanisterInfo) query;
+  get_conversation_chunk : (principal, PaginationParams) -> (vec Message) query;
+  get_message_count : () -> (nat64) query;
+  health_check : () -> (bool) query;
+  mark_message_read : (nat64) -> (PostResult);
+  post_message : (principal, text) -> (PostResult);
+}

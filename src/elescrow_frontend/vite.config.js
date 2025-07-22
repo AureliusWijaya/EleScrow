@@ -18,6 +18,9 @@ export default defineConfig({
     },
   },
   server: {
+    headers: {
+      'Content-Security-Policy': "connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io ws://localhost:* ws://127.0.0.1:* ws://*.localhost:* ws://*.127.0.0.1:*",
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:4943",
