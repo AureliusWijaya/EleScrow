@@ -428,6 +428,7 @@ service : () -> {
   admin_get_audit_logs : (PaginationParams) -> (Result_2) query;
   admin_get_transaction : (nat64) -> (Result) query;
   admin_pause_system : (text) -> (Result_1);
+  admin_resolve_dispute : (nat64, DisputeResolution) -> (Result);
   admin_resume_system : () -> (Result_1);
   admin_reverse_transaction : (nat64, text) -> (Result);
   admin_search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
@@ -465,6 +466,7 @@ service : () -> {
   is_username_available : (text) -> (bool) query;
   mark_all_notifications_read : () -> (Result_5);
   mark_notification_read : (nat64) -> (Result_4);
+  raise_dispute : (nat64, text) -> (Result);
   register_user : (RegisterUserRequest) -> (Result_7);
   search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
   submit_escrow_work : (nat64) -> (Result);

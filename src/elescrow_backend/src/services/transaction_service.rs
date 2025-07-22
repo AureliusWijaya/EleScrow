@@ -440,6 +440,117 @@ impl TransactionService {
         
         Ok(transactions)
     }
+
+    pub fn raise_dispute(
+        &mut self,
+        transaction_id: u64,
+        disputer: Principal,
+        reason: String,
+    ) -> Result<Transaction, ApiError> {
+        let mut transaction = self.get_transaction_model(transaction_id)?;
+    
+        if transaction.from != disputer && transaction.to != disputer {
+            return Err(ApiError::Unauthorized {
+                reason: "Only the sender or recipient can raise a dispute.".to_string(),
+            });
+        }
+    
+        if !matches!(transaction.status, TransactionStatus::SubmittedForReview { .. }) {
+            return Err(ApiError::InvalidState {
+                current_state: format!("{:?}", transaction.status),
+                required_state: "SubmittedForReview".to_string(),
+            });
+        }
+    
+        transaction.status = TransactionStatus::Disputed {
+            reason,
+            disputed_by: disputer,
+            disputed_at: time(),
+        };
+        transaction.updated_at = time();
+        
+        self.storage().transactions().insert(transaction_id, transaction.clone());
+    
+        let other_party = if transaction.from == disputer { transaction.to } else { transaction.from };
+        let _ = self.notification_service.borrow().create_transaction_notification(
+            other_party,
+            transaction_id,
+            "A dispute has been raised on your transaction.",
+        );
+        
+    
+        Ok(transaction.into())
+    }
+
+    pub fn resolve_dispute(
+        &mut self,
+        transaction_id: u64,
+        resolution: DisputeResolution,
+        admin_principal: Principal
+    ) -> Result<Transaction, ApiError> {
+        let mut transaction = self.get_transaction_model(transaction_id)?;
+    
+        if !matches!(transaction.status, TransactionStatus::Disputed { .. }) {
+            return Err(ApiError::InvalidState {
+                current_state: format!("{:?}", transaction.status),
+                required_state: "Disputed".to_string(),
+            });
+        }
+    
+        match resolution {
+            DisputeResolution::ReleaseToRecipient => {
+                BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().transfer_locked_funds(
+                        transaction.from,
+                        transaction.to,
+                        transaction.amount,
+                        transaction_id,
+                        "Dispute resolved: Funds released to recipient.",
+                    )
+                })?;
+
+                BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().unlock_funds(transaction.from, transaction.fee, transaction_id)
+                })?;
+            },
+            DisputeResolution::RefundToSender => {
+                let total_amount = transaction.amount + transaction.fee;
+                BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().unlock_funds(transaction.from, total_amount, transaction_id)
+                })?;
+            },
+            DisputeResolution::SplitBetweenParties { sender_percentage } => {
+                let recipient_percentage = 100 - sender_percentage;
+                let recipient_amount = transaction.amount * recipient_percentage as u64 / 100;
+                let sender_amount = transaction.amount - recipient_amount;
+    
+                BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().transfer_locked_funds(
+                        transaction.from,
+                        transaction.to,
+                        recipient_amount,
+                        transaction_id,
+                        "Dispute resolved: Funds split.",
+                    )
+                })?;
+                
+                BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().unlock_funds(transaction.from, sender_amount + transaction.fee, transaction_id)
+                })?;
+            }
+        }
+    
+        transaction.status = TransactionStatus::Resolved {
+            resolution: resolution.clone(),
+            resolved_by: admin_principal,
+            resolved_at: time()
+        };
+        transaction.updated_at = time();
+    
+        self.storage().transactions().insert(transaction_id, transaction.clone());
+    
+        Ok(transaction.into())
+    }
     
     // fn credit_funds(&self, principal: Principal, amount: u64) -> Result<(), ApiError> {
     //     let mut balance = self.get_or_create_balance(principal);
@@ -514,55 +625,6 @@ impl TransactionService {
     //     );
         
     //     Ok(balance)
-    // }
-
-    // pub fn resolve_dispute(
-    //     &self,
-    //     transaction_id: u64,
-    //     resolution: DisputeResolution,
-    //     admin_principal: Principal
-    // ) -> Result<Transaction, ApiError> {
-    //     if crate::SYSTEM_STATE.with(|s| s.borrow().is_paused) {
-    //         return Err(ApiError::SystemPaused {
-    //             reason: crate::SYSTEM_STATE.with(|s| s.borrow().reason.clone().unwrap_or_default()),
-    //         });
-    //     }
-    //     let mut transaction = self.get_transaction_model(transaction_id)?;
-
-    //     if !matches!(transaction.status, TransactionStatus::Disputed { .. }) {
-    //         return Err(ApiError::InvalidState {
-    //             current_state: format!("{:?}", transaction.status),
-    //             required_state: "Disputed".to_string(),
-    //         });
-    //     }
-
-    //     match resolution {
-    //         DisputeResolution::ReleaseToRecipient => {
-    //             self.credit_funds(transaction.to, transaction.amount)?;
-    //         }
-    //         DisputeResolution::RefundToSender => {
-    //             self.credit_funds(transaction.from, transaction.amount)?;
-    //         }
-    //         DisputeResolution::SplitBetweenParties { sender_percentage } => {
-    //             let recipient_percentage = 100 - sender_percentage;
-    //             let recipient_amount = transaction.amount * recipient_percentage as u64 / 100;
-    //             let sender_amount = transaction.amount - recipient_amount;
-
-    //             self.credit_funds(transaction.to, recipient_amount)?;
-    //             self.credit_funds(transaction.from, sender_amount)?;
-    //         }
-    //     }
-
-    //     transaction.status = TransactionStatus::Resolved {
-    //         resolution: resolution.clone(),
-    //         resolved_by: admin_principal,
-    //         resolved_at: time()
-    //     };
-    //     transaction.updated_at = time();
-
-    //     self.storage().transactions().insert(transaction_id, transaction.clone());
-
-    //     Ok(transaction.into())
     // }
     
     pub fn reverse_transaction(

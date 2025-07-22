@@ -60,6 +60,16 @@ pub fn complete_transaction(transaction_id: u64) -> Result<Transaction, ApiError
 
 #[update]
 #[candid_method(update)]
+pub fn raise_dispute(transaction_id: u64, reason: String) -> Result<Transaction, ApiError> {
+    let caller = caller();
+    
+    TRANSACTION_SERVICE.with(|service| {
+        service.borrow_mut().raise_dispute(transaction_id, caller, reason)
+    })
+}
+
+#[update]
+#[candid_method(update)]
 pub fn cancel_transaction(transaction_id: u64, reason: String) -> Result<Transaction, ApiError> {
     let caller = caller();
     

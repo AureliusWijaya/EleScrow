@@ -13,7 +13,7 @@ use crate::{USER_SERVICE, TRANSACTION_SERVICE, AUDIT_LOGGER};
 
 fn ensure_admin(caller: candid::Principal) -> Result<(), ApiError> {
     let admin_principals = vec![
-        "admin-principal-id-here",
+        "tdq4z-gz524-doqo7-nat24-nclox-v47yj-t5net-wnabe-nnr2g-fgl32-rqe",
     ];
     
     if !admin_principals.contains(&caller.to_text().as_str()) {
@@ -90,19 +90,19 @@ pub fn admin_get_transaction(transaction_id: u64) -> Result<Transaction, ApiErro
     })
 }
 
-// #[update]
-// #[candid_method(update)]
-// pub fn admin_resolve_dispute(
-//     transaction_id: u64,
-//     resolution: DisputeResolution
-// ) -> Result<Transaction, ApiError> {
-//     let caller = caller();
-//     ensure_admin(caller)?;
+#[update]
+#[candid_method(update)]
+pub fn admin_resolve_dispute(
+    transaction_id: u64,
+    resolution: DisputeResolution
+) -> Result<Transaction, ApiError> {
+    let caller = caller();
+    ensure_admin(caller)?;
     
-//     TRANSACTION_SERVICE.with(|service| {
-//         service.borrow().resolve_dispute(transaction_id, resolution, caller)
-//     })
-// }
+    TRANSACTION_SERVICE.with(|service| {
+        service.borrow_mut().resolve_dispute(transaction_id, resolution, caller)
+    })
+}
 
 #[update]
 #[candid_method(update)]
