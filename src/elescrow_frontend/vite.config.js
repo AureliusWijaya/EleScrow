@@ -1,10 +1,10 @@
-import { fileURLToPath, URL } from 'url';
-import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
-import environment from 'vite-plugin-environment';
-import dotenv from 'dotenv';
+import { fileURLToPath, URL } from "url";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import environment from "vite-plugin-environment";
+import dotenv from "dotenv";
 
-dotenv.config({ path: '../../.env' });
+dotenv.config({ path: "../../.env" });
 
 export default defineConfig({
   build: {
@@ -18,11 +18,21 @@ export default defineConfig({
     },
   },
   server: {
+    headers: {
+      'Content-Security-Policy': "connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io ws://localhost:* ws://127.0.0.1:* ws://*.localhost:* ws://*.127.0.0.1:*",
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:4943",
         changeOrigin: true,
       },
+    },
+    watch: {
+      usePolling: true,
+    },
+    host: true,
+    hmr: {
+      host: "localhost",
     },
   },
   plugins: [
@@ -34,11 +44,9 @@ export default defineConfig({
     alias: [
       {
         find: "declarations",
-        replacement: fileURLToPath(
-          new URL("../declarations", import.meta.url)
-        ),
+        replacement: fileURLToPath(new URL("../declarations", import.meta.url)),
       },
     ],
-    dedupe: ['@dfinity/agent'],
+    dedupe: ["@dfinity/agent"],
   },
 });

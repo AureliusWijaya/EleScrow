@@ -4,37 +4,35 @@ use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     DefaultMemoryImpl,
 };
+use ic_websocket_cdk::types::{
+    OnCloseCallbackArgs, OnMessageCallbackArgs, OnOpenCallbackArgs,
+    WsHandlers, WsInitParams,
+};
 use std::cell::RefCell;
 
-// Import all modules
 mod messaging;
 mod types;
 
-// Re-export public types and functions from modules
 pub use messaging::*;
 pub use types::*;
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 
-// Global memory manager for all modules
 thread_local! {
     static MEM: RefCell<MemoryManager<DefaultMemoryImpl>> =
         RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
 }
 
-// Memory allocation for different modules
 pub fn get_memory(id: u8) -> Memory {
     MEM.with(|m| m.borrow().get(MemoryId::new(id)))
 }
 
-// Health check for the entire canister
 #[query]
 #[candid_method(query)]
 fn health_check() -> bool {
     true
 }
 
-// Get canister info
 #[query]
 #[candid_method(query)]
 fn get_canister_info() -> CanisterInfo {
@@ -49,12 +47,35 @@ fn get_canister_info() -> CanisterInfo {
 }
 
 fn get_total_memory_usage() -> u64 {
-    // Calculate total memory usage across all modules
-    let message_count = get_message_count();
-    message_count
+    messaging::get_message_count()
 }
 
-// Generate the Candid interface for ALL modules
+#[init]
+#[candid_method(init)]
+fn init() {
+    let handlers = WsHandlers {
+        on_open: Some(|args: OnOpenCallbackArgs| {
+            messaging::on_client_open(args.client_principal);
+        }),
+        on_message: Some(|args: OnMessageCallbackArgs| {
+            messaging::on_ws_message(args.client_principal, args.message);
+        }),
+        on_close: Some(|args: OnCloseCallbackArgs| {
+            messaging::on_client_close(args.client_principal);
+        }),
+    };
+    let params = WsInitParams {
+        handlers,
+        ..WsInitParams::default()
+    };
+    ic_websocket_cdk::init(params);
+}
+
+#[post_upgrade]
+fn post_upgrade() {
+    init();
+}
+
 export_service!();
 
 #[query(name = "__get_candid_interface_tmp_hack")]
