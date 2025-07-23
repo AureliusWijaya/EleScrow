@@ -1,17 +1,3 @@
-use ic_cdk::api::{canister_balance, stable::stable64_size};
-use crate::types::common::MemoryUsage;
-
-pub fn get_memory_usage() -> MemoryUsage {
-    let heap_size = get_heap_memory_size();
-    let stable_size = (stable64_size() * 65536) as u64;
-    
-    MemoryUsage {
-        heap_size,
-        stable_size,
-        total_size: heap_size + stable_size,
-    }
-}
-
 fn get_heap_memory_size() -> u64 {
     1024 * 1024 * 100
 }
@@ -23,10 +9,6 @@ pub fn format_principal_short(principal: &candid::Principal) -> String {
     } else {
         full
     }
-}
-
-pub fn has_enough_cycles(required: u64) -> bool {
-    canister_balance() >= required
 }
 
 pub fn format_duration(nanos: u64) -> String {

@@ -1,6 +1,6 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
-use ic_cdk::api::caller;
+use ic_cdk::api::msg_caller;
 
 use crate::types::{
     errors::ApiError,
@@ -13,7 +13,7 @@ use crate::{USER_SERVICE};
 #[update]
 #[candid_method(update)]
 pub async fn register_user(request: RegisterUserRequest) -> Result<User, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().register(caller, request)
@@ -23,7 +23,7 @@ pub async fn register_user(request: RegisterUserRequest) -> Result<User, ApiErro
 #[query]
 #[candid_method(query)]
 pub fn get_current_user() -> Result<User, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().get_user(caller)
@@ -49,7 +49,7 @@ pub fn get_user_by_username(username: String) -> Result<User, ApiError> {
 #[update]
 #[candid_method(update)]
 pub fn update_profile(request: UpdateProfileRequest) -> Result<User, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().update_profile(caller, request)
@@ -59,7 +59,7 @@ pub fn update_profile(request: UpdateProfileRequest) -> Result<User, ApiError> {
 #[update]
 #[candid_method(update)]
 pub fn update_notification_preferences(preferences: NotificationPreferences) -> Result<User, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().update_notification_preferences(caller, preferences)
@@ -69,7 +69,7 @@ pub fn update_notification_preferences(preferences: NotificationPreferences) -> 
 #[update]
 #[candid_method(update)]
 pub fn update_security_settings(settings: SecuritySettings) -> Result<User, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().update_security_settings(caller, settings)
@@ -79,7 +79,7 @@ pub fn update_security_settings(settings: SecuritySettings) -> Result<User, ApiE
 #[update]
 #[candid_method(update)]
 pub fn deactivate_account() -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     USER_SERVICE.with(|service| {
         service.borrow().deactivate_account(caller)

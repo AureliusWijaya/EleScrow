@@ -1,6 +1,6 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
-use ic_cdk::api::caller;
+use ic_cdk::api::msg_caller;
 
 use crate::types::{
     errors::ApiError,
@@ -17,7 +17,7 @@ pub fn get_notifications(
     filter: Option<NotificationFilter>,
     pagination: PaginationParams,
 ) -> Result<ListResponse<Notification>, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         service.borrow().get_user_notifications(caller, filter, pagination)
@@ -27,7 +27,7 @@ pub fn get_notifications(
 #[query]
 #[candid_method(query)]
 pub fn get_notification_preferences() -> Result<NotificationPreferences, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     crate::USER_SERVICE.with(|service| {
         let user = service.borrow().get_user(caller)?;
@@ -38,7 +38,7 @@ pub fn get_notification_preferences() -> Result<NotificationPreferences, ApiErro
 #[query]
 #[candid_method(query)]
 pub fn get_notification_stats() -> NotificationStats {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         let service = service.borrow();
@@ -71,7 +71,7 @@ pub fn cleanup_expired_notifications() -> Result<u64, ApiError> {
 pub fn get_unread_notifications(
     pagination: PaginationParams,
 ) -> Result<ListResponse<Notification>, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     let filter = NotificationFilter {
         unread_only: Some(true),
@@ -90,7 +90,7 @@ pub fn get_unread_notifications(
 #[query]
 #[candid_method(query)]
 pub fn get_unread_count() -> u64 {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         service.borrow().get_unread_count(caller)
@@ -100,7 +100,7 @@ pub fn get_unread_count() -> u64 {
 #[query]
 #[candid_method(query)]
 pub fn get_notification(notification_id: u64) -> Result<Notification, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         let notification = service.borrow().get_notification_model(notification_id)?;
@@ -119,7 +119,7 @@ pub fn get_notification(notification_id: u64) -> Result<Notification, ApiError> 
 #[update]
 #[candid_method(update)]
 pub fn mark_notification_read(notification_id: u64) -> Result<Notification, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         service.borrow().mark_as_read(notification_id, caller)
@@ -129,7 +129,7 @@ pub fn mark_notification_read(notification_id: u64) -> Result<Notification, ApiE
 #[update]
 #[candid_method(update)]
 pub fn mark_all_notifications_read() -> Result<u64, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         service.borrow().mark_all_as_read(caller)
@@ -139,7 +139,7 @@ pub fn mark_all_notifications_read() -> Result<u64, ApiError> {
 #[update]
 #[candid_method(update)]
 pub fn archive_notification(notification_id: u64) -> Result<Notification, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     NOTIFICATION_SERVICE.with(|service| {
         service.borrow().archive(notification_id, caller)

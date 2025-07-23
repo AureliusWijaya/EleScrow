@@ -1,6 +1,6 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
-use ic_cdk::api::caller;
+use ic_cdk::api::msg_caller;
 use crate::types::{
     errors::ApiError,
     transaction::*,
@@ -11,7 +11,7 @@ use crate::{TRANSACTION_SERVICE, BALANCE_SERVICE};
 #[update]
 #[candid_method(update)]
 pub async fn create_transaction(request: CreateTransactionRequest) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().create_transaction(caller, request)
@@ -21,7 +21,7 @@ pub async fn create_transaction(request: CreateTransactionRequest) -> Result<Tra
 #[update]
 #[candid_method(update)]
 pub fn accept_escrow_terms(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow_mut().accept_escrow_terms(transaction_id, caller)
@@ -31,7 +31,7 @@ pub fn accept_escrow_terms(transaction_id: u64) -> Result<Transaction, ApiError>
 #[update]
 #[candid_method(update)]
 pub fn submit_escrow_work(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow_mut().submit_escrow_work(transaction_id, caller)
@@ -41,7 +41,7 @@ pub fn submit_escrow_work(transaction_id: u64) -> Result<Transaction, ApiError> 
 #[update]
 #[candid_method(update)]
 pub fn approve_transaction(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow_mut().approve_transaction(transaction_id, caller)
@@ -51,7 +51,7 @@ pub fn approve_transaction(transaction_id: u64) -> Result<Transaction, ApiError>
 #[update]
 #[candid_method(update)]
 pub fn complete_transaction(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow_mut().complete_transaction(transaction_id, caller)
@@ -61,7 +61,7 @@ pub fn complete_transaction(transaction_id: u64) -> Result<Transaction, ApiError
 #[update]
 #[candid_method(update)]
 pub fn raise_dispute(transaction_id: u64, reason: String) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow_mut().raise_dispute(transaction_id, caller, reason)
@@ -71,7 +71,7 @@ pub fn raise_dispute(transaction_id: u64, reason: String) -> Result<Transaction,
 #[update]
 #[candid_method(update)]
 pub fn cancel_transaction(transaction_id: u64, reason: String) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().cancel_transaction(transaction_id, caller, reason)
@@ -81,7 +81,7 @@ pub fn cancel_transaction(transaction_id: u64, reason: String) -> Result<Transac
 #[query]
 #[candid_method(query)]
 pub fn get_transaction(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().get_transaction(transaction_id, caller)
@@ -94,7 +94,7 @@ pub fn get_my_transactions(
     filter: Option<TransactionFilter>,
     pagination: PaginationParams,
 ) -> Result<Vec<Transaction>, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().get_user_transactions(caller, filter, pagination)
@@ -104,7 +104,7 @@ pub fn get_my_transactions(
 #[query]
 #[candid_method(query)]
 pub fn get_balance() -> Result<Balance, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     BALANCE_SERVICE.with(|service| {
         service.borrow_mut().get_balance(caller)
@@ -114,7 +114,7 @@ pub fn get_balance() -> Result<Balance, ApiError> {
 #[update]
 #[candid_method(update)]
 pub async fn deposit(amount: u64) -> Result<u64, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     BALANCE_SERVICE.with(|service| {
         service.borrow_mut().deposit(caller, amount)
@@ -124,7 +124,7 @@ pub async fn deposit(amount: u64) -> Result<u64, ApiError> {
 #[update]
 #[candid_method(update)]
 pub async fn withdraw(amount: u64) -> Result<u64, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     BALANCE_SERVICE.with(|service| {
         service.borrow_mut().withdraw(caller, amount)
@@ -139,7 +139,7 @@ pub fn create_scheduled_payment(
     schedule: PaymentSchedule,
     description: String,
 ) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     let request = CreateTransactionRequest {
         transaction_type: TransactionType::ScheduledPayment { schedule },
@@ -161,7 +161,7 @@ pub fn create_scheduled_payment(
 #[update]
 #[candid_method(update)]
 pub fn cancel_scheduled_payment(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     
     TRANSACTION_SERVICE.with(|service| {
         service.borrow().cancel_transaction(transaction_id, caller, "User cancelled scheduled payment".to_string())

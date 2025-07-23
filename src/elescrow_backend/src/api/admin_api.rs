@@ -1,6 +1,6 @@
 use candid::candid_method;
 use ic_cdk_macros::{query, update};
-use ic_cdk::api::caller;
+use ic_cdk::api::msg_caller;
 
 use crate::types::{
     errors::ApiError,
@@ -31,7 +31,7 @@ pub fn admin_freeze_account(
     user_principal: candid::Principal,
     reason: String,
 ) -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     USER_SERVICE.with(|service| {
@@ -42,7 +42,7 @@ pub fn admin_freeze_account(
 #[update]
 #[candid_method(update)]
 pub fn admin_unfreeze_account(user_principal: candid::Principal) -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     USER_SERVICE.with(|service| {
@@ -56,7 +56,7 @@ pub fn admin_verify_user(
     user_principal: candid::Principal,
     verification_level: crate::types::user::VerificationLevel,
 ) -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     USER_SERVICE.with(|service| {
@@ -71,7 +71,7 @@ pub fn admin_search_users(
     params: UserSearchParams,
     pagination: PaginationParams,
 ) -> Result<Vec<crate::types::user::User>, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     USER_SERVICE.with(|service| {
@@ -82,7 +82,7 @@ pub fn admin_search_users(
 #[query]
 #[candid_method(query)]
 pub fn admin_get_transaction(transaction_id: u64) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     TRANSACTION_SERVICE.with(|service| {
@@ -96,7 +96,7 @@ pub fn admin_resolve_dispute(
     transaction_id: u64,
     resolution: DisputeResolution
 ) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     TRANSACTION_SERVICE.with(|service| {
@@ -110,7 +110,7 @@ pub fn admin_reverse_transaction(
     transaction_id: u64,
     reason: String,
 ) -> Result<Transaction, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     TRANSACTION_SERVICE.with(|service| {
@@ -123,7 +123,7 @@ pub fn admin_reverse_transaction(
 pub fn admin_get_audit_logs(
     pagination: PaginationParams,
 ) -> Result<Vec<AuditLog>, ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
     
     AUDIT_LOGGER.with(|logger| {
@@ -134,7 +134,7 @@ pub fn admin_get_audit_logs(
 #[update]
 #[candid_method(update)]
 pub fn admin_update_fee_percentage(new_fee_bps: u64) -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
 
     TRANSACTION_SERVICE.with(|service| {
@@ -145,7 +145,7 @@ pub fn admin_update_fee_percentage(new_fee_bps: u64) -> Result<(), ApiError> {
 #[update]
 #[candid_method(update)]
 pub fn admin_pause_system(reason: String) -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
 
     crate::SYSTEM_STATE.with(|state| {
@@ -169,7 +169,7 @@ pub fn admin_pause_system(reason: String) -> Result<(), ApiError> {
 #[update]
 #[candid_method(update)]
 pub fn admin_resume_system() -> Result<(), ApiError> {
-    let caller = caller();
+    let caller = msg_caller();
     ensure_admin(caller)?;
 
     AUDIT_LOGGER.with(|log| {

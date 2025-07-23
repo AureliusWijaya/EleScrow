@@ -1,34 +1,3 @@
-type CanisterInfo = record {
-  name : text;
-  version : text;
-  total_memory_usage : nat64;
-  modules : vec text;
-};
-type Message = record {
-  id : nat64;
-  to : principal;
-  from : principal;
-  read : bool;
-  "text" : text;
-  timestamp : nat64;
-};
-type PaginationParams = record { offset : opt nat64; limit : opt nat64 };
-type PostResult = variant { Ok; Err : text };
-service : () -> {
-  __candid_method_get_canister_info : () -> (CanisterInfo) query;
-  __candid_method_get_conversation_chunk : (principal, PaginationParams) -> (
-      vec Message,
-    ) query;
-  __candid_method_get_message_count : () -> (nat64) query;
-  __candid_method_health_check : () -> (bool) query;
-  __candid_method_mark_message_read : (nat64) -> (PostResult);
-  __candid_method_post_message : (principal, text) -> (PostResult);
-  get_canister_info : () -> (CanisterInfo) query;
-  get_conversation_chunk : (principal, PaginationParams) -> (vec Message) query;
-  get_message_count : () -> (nat64) query;
-  health_check : () -> (bool) query;
-  mark_message_read : (nat64) -> (PostResult);
-  post_message : (principal, text) -> (PostResult);
 type ActionStyle = variant { Secondary; Link; Primary; Danger; Success };
 type ActionType = variant {
   Navigate : record { url : text };
@@ -177,6 +146,14 @@ type LoginAttempt = record {
   user_agent : opt text;
   ip_address : opt text;
 };
+type Message = record {
+  id : nat64;
+  to : principal;
+  from : principal;
+  read : bool;
+  "text" : text;
+  timestamp : nat64;
+};
 type Notification = record {
   id : nat64;
   read_at : opt nat64;
@@ -278,6 +255,7 @@ type PaymentSchedule = record {
   frequency : PaymentFrequency;
   next_payment_date : nat64;
 };
+type PostResult = variant { Ok; Err : text };
 type RegisterUserRequest = record {
   username : text;
   email : opt text;
@@ -479,7 +457,9 @@ service : () -> {
   deactivate_account : () -> (Result_1);
   deposit : (nat64) -> (Result_5);
   get_balance : () -> (Result_6) query;
+  get_conversation_chunk : (principal, PaginationParams) -> (vec Message) query;
   get_current_user : () -> (Result_7) query;
+  get_message_count : () -> (nat64) query;
   get_my_transactions : (opt TransactionFilter, PaginationParams) -> (
       Result_8,
     ) query;
@@ -496,7 +476,9 @@ service : () -> {
   get_user_by_username : (text) -> (Result_7) query;
   is_username_available : (text) -> (bool) query;
   mark_all_notifications_read : () -> (Result_5);
+  mark_message_read : (nat64) -> (PostResult);
   mark_notification_read : (nat64) -> (Result_4);
+  post_message : (principal, text) -> (PostResult);
   raise_dispute : (nat64, text) -> (Result);
   register_user : (RegisterUserRequest) -> (Result_7);
   search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;

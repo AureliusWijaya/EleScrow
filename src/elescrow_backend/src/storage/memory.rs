@@ -24,6 +24,8 @@ pub enum MemoryRegion {
     Reserved2 = 14,
     Reserved3 = 15,
     UserTransactionsData = 16,
+    Messages = 17,
+    ConversationIndex = 18,
 }
 
 impl From<MemoryRegion> for MemoryId {

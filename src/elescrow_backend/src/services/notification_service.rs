@@ -34,7 +34,7 @@ impl NotificationService {
             ),
             next_id: RefCell::new(1),
             max_notifications_per_user: 1000,
-            default_expiry: 30 * 24 * 60 * 60 * 1_000_000_000, // 30 days
+            default_expiry: 30 * 24 * 60 * 60 * 1_000_000_000, 
         }
     }
     
