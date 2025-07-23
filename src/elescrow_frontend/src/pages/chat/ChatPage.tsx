@@ -9,7 +9,6 @@ import { IDL, JsonValue } from "@dfinity/candid";
 import * as cbor from "cbor-js";
 import {
   _SERVICE,
-  CanisterInfo,
   Message,
   PostResult,
 } from "../../../../declarations/elescrow_backend/elescrow_backend.did";
@@ -50,7 +49,6 @@ function ChatPage(): JSX.Element {
   const [error, setError] = useState<string>("");
   const [connectionStatus, setConnectionStatus] =
     useState<string>("disconnected");
-  const [canisterInfo, setCanisterInfo] = useState<CanisterInfo | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const wsConnectionRef = useRef<WebSocket | null>(null);
@@ -81,7 +79,7 @@ function ChatPage(): JSX.Element {
           limit: [BigInt(100)],
         });
 
-        msgs.sort((a, b) => {
+        msgs.sort((a: any, b: any) => {
           if (a.timestamp < b.timestamp) return -1;
           if (a.timestamp > b.timestamp) return 1;
           return 0;
@@ -299,15 +297,8 @@ function ChatPage(): JSX.Element {
         agent,
         canisterId: CANISTER_ID,
       });
-      const isHealthy = await newActor.health_check();
-      if (!isHealthy) throw new Error("Canister health check failed.");
 
-      const info = await newActor.get_canister_info();
       setActor(newActor);
-      setCanisterInfo({
-        ...info,
-        total_memory_usage: info.total_memory_usage,
-      });
     } catch (err: any) {
       console.error("Actor creation failed:", err);
       setError("Failed to connect to canister: " + err.message);
@@ -466,11 +457,6 @@ function ChatPage(): JSX.Element {
             <h1 className="text-xl font-bold text-gray-800">
               Chatting as: {TEST_IDENTITIES[currentUser].name}
             </h1>
-            {canisterInfo && (
-              <p className="text-xs text-gray-500">
-                Canister: {canisterInfo.name} v{canisterInfo.version}
-              </p>
-            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
