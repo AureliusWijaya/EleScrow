@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Button from "../shared/components/Button";
-import Input from "../shared/components/Input";
-import Link from "../shared/components/Link";
+import Button from "../../shared/components/Button";
+import Input from "../../shared/components/Input";
+import Link from "../../shared/components/Link";
 
 function RegisterPage(): JSX.Element {
   const [username, setUsername] = useState("");
@@ -32,9 +32,9 @@ function RegisterPage(): JSX.Element {
             <div className="relative w-48 h-32 flex items-center justify-center">
               <i className="bi bi-currency-bitcoin text-4xl text-yellow-500 absolute top-8 left-10 transform -rotate-12"></i>
               <i className="mdi mdi-ethereum text-4xl text-white-500 absolute top-5 left-1/2 transform -translate-x-1/2"></i>
-              <img 
-                src="/usdt.svg" 
-                alt="USDT" 
+              <img
+                src="/usdt.svg"
+                alt="USDT"
                 className="w-8 h-8 absolute top-9 right-10  transform rotate-12"
               />
               <i className="bi bi-credit-card text-6xl text-white absolute bottom-0 left-1/2 transform -translate-x-1/2"></i>
@@ -82,14 +82,13 @@ function RegisterPage(): JSX.Element {
 
             <div className="text-left">
               <span className="text-primary-text text-sm">
-                Have an account?{" "}
-                <Link href="/login">Sign In</Link>
+                Have an account? <Link href="/login">Sign In</Link>
               </span>
             </div>
 
-            <Button 
-              variant="outlined" 
-              className="w-full py-3" 
+            <Button
+              variant="outlined"
+              className="w-full py-3"
               onClick={handleSignUp}
             >
               Sign Up

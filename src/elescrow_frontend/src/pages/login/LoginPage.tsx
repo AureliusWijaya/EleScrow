@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import Button from "../shared/components/Button";
-import Input from "../shared/components/Input";
-import Link from "../shared/components/Link";
+import Button from "../../shared/components/Button";
+import Input from "../../shared/components/Input";
+import Link from "../../shared/components/Link";
 
 function LoginPage(): JSX.Element {
   const [email, setEmail] = useState("");
@@ -38,15 +38,13 @@ function LoginPage(): JSX.Element {
           />
 
           <div className="text-left">
-            <span className="text-secondary-text">
-              Don't have an account?{" "}
-            </span>
-              <Link href="/register">Sign Up</Link>
+            <span className="text-secondary-text">Don't have an account? </span>
+            <Link href="/register">Sign Up</Link>
           </div>
 
-          <Button 
-            variant="outlined" 
-            className="w-full py-3" 
+          <Button
+            variant="outlined"
+            className="w-full py-3"
             onClick={handleSignIn}
           >
             Sign In
