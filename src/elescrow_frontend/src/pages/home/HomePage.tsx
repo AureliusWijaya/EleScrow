@@ -3,37 +3,35 @@ import Button from "../../shared/components/Button";
 import { Stepper } from "@mantine/core";
 
 import { AuthClient } from "@dfinity/auth-client";
-import { Principal } from '@dfinity/principal';
+import { Principal } from "@dfinity/principal";
+import { Identity } from "@dfinity/agent";
+import { useUserStoreActions } from "../../shared/store/user-store";
 
 function HomePage(): JSX.Element {
   const [active, setActive] = useState(0);
+  const { setLoggedInUserPrincipal } = useUserStoreActions();
 
+  const loginICP = async () => {
+    console.log("Login initiated");
+    try {
+      const client = await AuthClient.create();
+      console.log("AuthClient created");
 
-const loginICP = async () => {
-  console.log("Login initiated");
-  try {
-    const client = await AuthClient.create();
-    console.log("AuthClient created");
-
-    await client.login({
-      identityProvider: "https://identity.ic0.app/#authorize",
-      onSuccess: async () => {
-        const identity = client.getIdentity();
-        const principal = identity.getPrincipal();
-        console.log("Login successful", principal.toString()," " ,identity);
-
-
-        document.cookie = `PeanutFundtoken=${principal.toString()}; path=/; secure; samesite=strict`;
-      },
-      onError: (err) => {
-        console.error("Login error in callback", err);
-      },
-    });
-  } catch (error) {
-    console.error("LoginICP Error", error);
-  }
-};
-
+      await client.login({
+        identityProvider: "https://identity.ic0.app/#authorize",
+        onSuccess: async () => {
+          const principal: Principal = client.getIdentity().getPrincipal();
+          console.log("Login successful: ", principal);
+          setLoggedInUserPrincipal(principal);
+        },
+        onError: (err) => {
+          console.error("Login error in callback", err);
+        },
+      });
+    } catch (error) {
+      console.error("LoginICP Error", error);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -55,7 +53,9 @@ const loginICP = async () => {
             </span>
           </div>
 
-          <Button className="!px-16 !py-4 z-10" click={loginICP}>Connect Wallet</Button>
+          <Button className="!px-16 !py-4 z-10" click={loginICP}>
+            Connect Wallet
+          </Button>
 
           <div className="absolute w-full h-full bg-secondary z-0 rounded-full blur-3xl opacity-30"></div>
         </div>

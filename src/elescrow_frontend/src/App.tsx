@@ -27,7 +27,10 @@ function App(): JSX.Element {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
-          <Route path="/transaction/create" element={<CreateTransactionPage />} />
+          <Route
+            path="/transaction/create"
+            element={<CreateTransactionPage />}
+          />
           <Route path="/transaction/:id" element={<TransactionDetailPage />} />
         </Routes>
       </main>
