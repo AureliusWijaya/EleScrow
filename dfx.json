@@ -14,6 +14,19 @@
       ],
       "type": "assets",
       "workspace": "elescrow_frontend"
+    },
+    "ledger": {
+      "type": "custom",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/c337458aafa8e8864eadfcfe38d7e5fa385b0006/rs/rosetta-api/icrc1/ledger/ledger.did",
+      "wasm": "https://download.dfinity.systems/ic/c337458aafa8e8864eadfcfe38d7e5fa385b0006/canisters/ic-icrc1-ledger.wasm.gz"
+    },
+    "internet_identity": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
+      "frontend": {
+        "source": "internet_identity/src/frontend"
+      }
     }
   },
   "defaults": {
