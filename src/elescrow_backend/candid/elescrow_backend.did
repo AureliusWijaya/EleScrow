@@ -1,8 +1,150 @@
-type CanisterInfo = record {
+type ActionStyle = variant { Secondary; Link; Primary; Danger; Success };
+type ActionType = variant {
+  Navigate : record { url : text };
+  Approve : record { resource_id : text };
+  Reject : record { resource_id : text };
+  Custom : record { action : text; data : text };
+  Dismiss;
+};
+type ApiError = variant {
+  AccountFrozen : record { reason : text };
+  TransactionError : record { transaction_id : nat64; reason : text };
+  NotFound : record { resource : text };
+  ValidationError : record { field : text; message : text };
+  Unauthorized : record { reason : text };
+  AlreadyExists : record { resource : text };
+  SystemPaused : record { reason : text };
+  ServiceUnavailable : record { "service" : text };
+  RateLimited : record { retry_after : nat64 };
+  AccountNotVerified;
+  InternalError : record { details : text };
+  Forbidden : record { action : text };
+  BadRequest : record { message : text };
+  InvalidState : record { current_state : text; required_state : text };
+  Expired : record { resource : text; expired_at : nat64 };
+  InsufficientFunds : record { available : nat64; required : nat64 };
+};
+type Attachment = record {
+  id : text;
+  url : text;
   name : text;
-  version : text;
-  total_memory_usage : nat64;
-  modules : vec text;
+  size : nat64;
+  mime_type : text;
+  uploaded_at : nat64;
+  uploaded_by : principal;
+};
+type AuditAction = variant {
+  TransactionDeposited;
+  ValidationFailed;
+  AccountFrozen;
+  TransactionCancelled;
+  Deposit;
+  UserRegistered;
+  AdminAccess;
+  AccountUnfrozen;
+  UserUpdated;
+  TransactionFailed;
+  TransactionCompleted;
+  TransactionCreated;
+  FundsLocked;
+  LoginSuccess;
+  TransactionDisputed;
+  SystemResumed;
+  SuspiciousActivity;
+  TransactionRefunded;
+  Withdrawal;
+  ConfigurationChanged;
+  FundsUnlocked;
+  SystemPaused;
+  RateLimitExceeded;
+  TransactionReleased;
+  TransactionReversed;
+  TransactionApproved;
+  TransactionWithdrawn;
+  LoginAttempt;
+  UserDeactivated;
+  UserReactivated;
+  LoginFailed;
+  KycStatusUpdated;
+};
+type AuditLog = record {
+  id : nat64;
+  "principal" : principal;
+  resource : text;
+  action : AuditAction;
+  timestamp : nat64;
+  details : opt text;
+  user_agent : opt text;
+  ip_address : opt text;
+};
+type Balance = record {
+  updated_at : nat64;
+  "principal" : principal;
+  locked : nat64;
+  total_received : nat64;
+  total_sent : nat64;
+  available : nat64;
+  last_transaction_id : opt nat64;
+  pending_outgoing : nat64;
+  currency : Currency;
+  pending_incoming : nat64;
+};
+type CreateTransactionRequest = record {
+  to : principal;
+  transaction_type : TransactionType;
+  tags : vec text;
+  escrow_agent : opt principal;
+  description : text;
+  deadline : opt nat64;
+  currency : Currency;
+  category : opt TransactionCategory;
+  amount : nat64;
+};
+type Currency = variant {
+  ICP;
+  USDT;
+  Custom : record { decimals : nat8; symbol : text };
+  Cycles;
+};
+type DeliveryState = variant {
+  Failed : record { failed_at : nat64; reason : text };
+  Sent : record { sent_at : nat64 };
+  Delivered : record { delivered_at : nat64 };
+  Bounced : record { bounced_at : nat64; reason : text };
+  Pending;
+};
+type DeliveryStatus = record {
+  sms : opt DeliveryState;
+  push : opt DeliveryState;
+  email : opt DeliveryState;
+  in_app : DeliveryState;
+};
+type DisputeResolution = variant {
+  ReleaseToRecipient;
+  RefundToSender;
+  SplitBetweenParties : record { sender_percentage : nat8 };
+};
+type KycStatus = variant {
+  UnderReview;
+  Approved;
+  Rejected : record { reason : text };
+  Expired;
+  Pending;
+  NotStarted;
+};
+type ListResponse = record {
+  total : nat64;
+  offset : nat64;
+  limit : nat64;
+  items : vec Notification;
+  has_more : bool;
+};
+type LoginAttempt = record {
+  failure_reason : opt text;
+  timestamp : nat64;
+  success : bool;
+  user_agent : opt text;
+  ip_address : opt text;
 };
 type Message = record {
   id : nat64;
@@ -12,15 +154,337 @@ type Message = record {
   "text" : text;
   timestamp : nat64;
 };
-type PaginationParams = record { offset : opt nat64; limit : opt nat64 };
+type Notification = record {
+  id : nat64;
+  read_at : opt nat64;
+  is_read : bool;
+  title : text;
+  delivery_status : DeliveryStatus;
+  related_resource : opt RelatedResource;
+  recipient : principal;
+  actions : vec NotificationAction;
+  created_at : nat64;
+  is_archived : bool;
+  notification_type : NotificationType;
+  message : text;
+  category : NotificationCategory;
+  priority : NotificationPriority;
+  expires_at : opt nat64;
+};
+type NotificationAction = record {
+  id : text;
+  action_type : ActionType;
+  label : text;
+  style : ActionStyle;
+  confirmation_required : bool;
+};
+type NotificationCategory = variant {
+  System;
+  Transaction;
+  Security;
+  Social;
+  Account;
+  Marketing;
+};
+type NotificationChannel = variant { SMS; Email; Push; InApp };
+type NotificationFilter = record {
+  date_range : opt TimeFilter;
+  notification_type : opt vec NotificationType;
+  has_actions : opt bool;
+  category : opt vec NotificationCategory;
+  priority : opt vec NotificationPriority;
+  unread_only : opt bool;
+};
+type NotificationPreferences = record {
+  sms_enabled : bool;
+  security_alerts : bool;
+  weekly_summary : bool;
+  transaction_alerts : bool;
+  push_enabled : bool;
+  notification_channels : vec NotificationChannel;
+  marketing_emails : bool;
+  email_enabled : bool;
+};
+type NotificationPriority = variant { Low; High; Normal; Critical; Urgent };
+type NotificationStats = record {
+  read_count : nat64;
+  total_notifications : nat64;
+  unread_count : nat64;
+  archived_count : nat64;
+};
+type NotificationType = variant {
+  AccountCreated;
+  MessageReply;
+  EscrowDisputed;
+  AccountFrozen;
+  TransactionReceived;
+  TransactionCancelled;
+  SystemUpdate;
+  TransactionCompleted;
+  EscrowReleased;
+  TransactionDisputed;
+  Custom : record { type_name : text };
+  TransactionSent;
+  EscrowExpiring;
+  TransactionRefunded;
+  AccountUpdated;
+  PolicyUpdate;
+  SecurityAlert;
+  AccountVerified;
+  EscrowCreated;
+  SystemMaintenance;
+  NewMessage;
+};
+type PaginationParams = record { offset : nat64; limit : nat64 };
+type PaymentFrequency = variant {
+  BiWeekly;
+  OneTime;
+  Weekly;
+  Quarterly;
+  Daily;
+  Custom : record { interval_days : nat32 };
+  Monthly;
+  Yearly;
+};
+type PaymentSchedule = record {
+  amount_per_payment : nat64;
+  payments_completed : nat32;
+  end_date : opt nat64;
+  start_date : nat64;
+  total_payments : opt nat32;
+  frequency : PaymentFrequency;
+  next_payment_date : nat64;
+};
 type PostResult = variant { Ok; Err : text };
-service : {
-  get_canister_info : () -> (CanisterInfo) query;
-  get_conversation : (principal) -> (vec Message) query;
+type RegisterUserRequest = record {
+  username : text;
+  email : opt text;
+  display_name : opt text;
+  referral_code : opt text;
+};
+type RelatedResource = variant {
+  Transaction : nat64;
+  User : principal;
+  Message : nat64;
+  Document : text;
+  Dispute : nat64;
+  ExternalUrl : text;
+};
+type Result = variant { Ok : Transaction; Err : ApiError };
+type Result_1 = variant { Ok; Err : ApiError };
+type Result_10 = variant { Ok : ListResponse; Err : ApiError };
+type Result_2 = variant { Ok : vec AuditLog; Err : ApiError };
+type Result_3 = variant { Ok : vec User; Err : ApiError };
+type Result_4 = variant { Ok : Notification; Err : ApiError };
+type Result_5 = variant { Ok : nat64; Err : ApiError };
+type Result_6 = variant { Ok : Balance; Err : ApiError };
+type Result_7 = variant { Ok : User; Err : ApiError };
+type Result_8 = variant { Ok : vec Transaction; Err : ApiError };
+type Result_9 = variant { Ok : NotificationPreferences; Err : ApiError };
+type SecuritySettings = record {
+  require_password_change : bool;
+  last_password_change : nat64;
+  allowed_ips : vec text;
+  session_timeout : nat64;
+  two_factor_enabled : bool;
+  two_factor_method : opt TwoFactorMethod;
+  login_history : vec LoginAttempt;
+};
+type TimeFilter = record { end : opt nat64; start : opt nat64 };
+type Transaction = record {
+  id : nat64;
+  to : principal;
+  fee : nat64;
+  status : TransactionStatus;
+  updated_at : nat64;
+  transaction_type : TransactionType;
+  metadata : TransactionMetadata;
+  from : principal;
+  escrow_agent : opt principal;
+  description : text;
+  deadline : opt nat64;
+  created_at : nat64;
+  currency : Currency;
+  completed_at : opt nat64;
+  amount : nat64;
+};
+type TransactionCategory = variant {
+  Refund;
+  Investment;
+  Salary;
+  Personal;
+  Freelance;
+  Business;
+  Other : record { name : text };
+};
+type TransactionFilter = record {
+  to : opt principal;
+  status : opt vec TransactionStatus;
+  transaction_type : opt vec TransactionType;
+  min_amount : opt nat64;
+  date_range : opt TimeFilter;
+  from : opt principal;
+  tags : opt vec text;
+  currency : opt Currency;
+  category : opt TransactionCategory;
+  max_amount : opt nat64;
+};
+type TransactionMetadata = record {
+  invoice_id : opt text;
+  tags : vec text;
+  notes : vec TransactionNote;
+  category : opt TransactionCategory;
+  order_id : opt text;
+  custom_fields : vec record { text; text };
+  attachments : vec Attachment;
+};
+type TransactionNote = record {
+  content : text;
+  is_private : bool;
+  created_at : nat64;
+  author : principal;
+};
+type TransactionStatus = variant {
+  Disputed : record {
+    disputed_at : nat64;
+    disputed_by : principal;
+    reason : text;
+  };
+  Failed : record { failed_at : nat64; reason : text };
+  UnderReview : record { review_started_at : nat64; reviewer : principal };
+  Refunded : record { refund_transaction_id : nat64; refunded_at : nat64 };
+  InEscrow;
+  Approved;
+  Draft;
+  Cancelled : record {
+    cancelled_at : nat64;
+    cancelled_by : principal;
+    reason : text;
+  };
+  Processing;
+  PartiallyRefunded : record {
+    refund_transaction_ids : vec nat64;
+    refunded_amount : nat64;
+  };
+  Resolved : record {
+    resolution : DisputeResolution;
+    resolved_at : nat64;
+    resolved_by : principal;
+  };
+  Completed;
+  SubmittedForReview : record { submitted_at : nat64 };
+  Pending;
+};
+type TransactionType = variant {
+  Escrow : record {
+    release_conditions : vec text;
+    auto_release_after : opt nat64;
+  };
+  Release;
+  Deposit;
+  Refund : record { original_transaction_id : nat64 };
+  Reversal;
+  Dispute : record { evidence : vec text; reason : text };
+  Withdrawal;
+  ScheduledPayment : record { schedule : PaymentSchedule };
+  DirectPayment;
+};
+type TwoFactorMethod = variant { SMS; Email; HardwareKey; AuthenticatorApp };
+type UpdateProfileRequest = record {
+  bio : opt text;
+  avatar_url : opt text;
+  email : opt text;
+  display_name : opt text;
+  phone : opt text;
+};
+type User = record {
+  notification_preferences : NotificationPreferences;
+  security_settings : SecuritySettings;
+  account : UserAccount;
+  profile : UserProfile;
+};
+type UserAccount = record {
+  verification_level : VerificationLevel;
+  freeze_reason : opt text;
+  is_frozen : bool;
+  is_verified : bool;
+  kyc_status : KycStatus;
+  is_active : bool;
+};
+type UserProfile = record {
+  bio : text;
+  updated_at : nat64;
+  "principal" : principal;
+  username : text;
+  avatar_url : opt text;
+  created_at : nat64;
+  last_active : nat64;
+  email : opt text;
+  display_name : text;
+  phone : opt text;
+};
+type UserSearchParams = record {
+  verification_level : opt VerificationLevel;
+  "query" : opt text;
+  created_after : opt nat64;
+  is_active : opt bool;
+  created_before : opt nat64;
+};
+type VerificationLevel = variant { Enhanced; Basic; Standard };
+service : () -> {
+  accept_escrow_terms : (nat64) -> (Result);
+  admin_freeze_account : (principal, text) -> (Result_1);
+  admin_get_audit_logs : (PaginationParams) -> (Result_2) query;
+  admin_get_transaction : (nat64) -> (Result) query;
+  admin_pause_system : (text) -> (Result_1);
+  admin_resolve_dispute : (nat64, DisputeResolution) -> (Result);
+  admin_resume_system : () -> (Result_1);
+  admin_reverse_transaction : (nat64, text) -> (Result);
+  admin_search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
+  admin_unfreeze_account : (principal) -> (Result_1);
+  admin_update_fee_percentage : (nat64) -> (Result_1);
+  admin_verify_user : (principal, VerificationLevel) -> (Result_1);
+  approve_transaction : (nat64) -> (Result);
+  archive_notification : (nat64) -> (Result_4);
+  cancel_scheduled_payment : (nat64) -> (Result);
+  cancel_transaction : (nat64, text) -> (Result);
+  cleanup_expired_notifications : () -> (Result_5);
+  complete_transaction : (nat64) -> (Result);
+  create_scheduled_payment : (principal, nat64, PaymentSchedule, text) -> (
+      Result,
+    );
+  create_transaction : (CreateTransactionRequest) -> (Result);
+  deactivate_account : () -> (Result_1);
+  deposit : (nat64) -> (Result_5);
+  get_balance : () -> (Result_6) query;
+  get_conversation_chunk : (principal, PaginationParams) -> (vec Message) query;
+  get_current_user : () -> (Result_7) query;
   get_message_count : () -> (nat64) query;
-  get_messages : (PaginationParams) -> (vec Message) query;
-  get_unread_messages : () -> (vec Message) query;
-  health_check : () -> (bool) query;
+  get_my_transactions : (opt TransactionFilter, PaginationParams) -> (
+      Result_8,
+    ) query;
+  get_notification : (nat64) -> (Result_4) query;
+  get_notification_preferences : () -> (Result_9) query;
+  get_notification_stats : () -> (NotificationStats) query;
+  get_notifications : (opt NotificationFilter, PaginationParams) -> (
+      Result_10,
+    ) query;
+  get_transaction : (nat64) -> (Result) query;
+  get_unread_count : () -> (nat64) query;
+  get_unread_notifications : (PaginationParams) -> (Result_10) query;
+  get_user_by_principal : (principal) -> (Result_7) query;
+  get_user_by_username : (text) -> (Result_7) query;
+  is_username_available : (text) -> (bool) query;
+  mark_all_notifications_read : () -> (Result_5);
   mark_message_read : (nat64) -> (PostResult);
+  mark_notification_read : (nat64) -> (Result_4);
   post_message : (principal, text) -> (PostResult);
+  raise_dispute : (nat64, text) -> (Result);
+  register_user : (RegisterUserRequest) -> (Result_7);
+  search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;
+  submit_escrow_work : (nat64) -> (Result);
+  update_notification_preferences : (NotificationPreferences) -> (Result_7);
+  update_profile : (UpdateProfileRequest) -> (Result_7);
+  update_security_settings : (SecuritySettings) -> (Result_7);
+  withdraw : (nat64) -> (Result_5);
 }
