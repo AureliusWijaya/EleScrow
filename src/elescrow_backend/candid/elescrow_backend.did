@@ -264,6 +264,7 @@ type RelatedResource = variant {
 type Result = variant { Ok : Transaction; Err : ApiError };
 type Result_1 = variant { Ok; Err : ApiError };
 type Result_10 = variant { Ok : ListResponse; Err : ApiError };
+type Result_11 = variant { Ok : nat64; Err : text };
 type Result_2 = variant { Ok : vec AuditLog; Err : ApiError };
 type Result_3 = variant { Ok : vec User; Err : ApiError };
 type Result_4 = variant { Ok : Notification; Err : ApiError };
@@ -447,7 +448,7 @@ service : () -> {
   create_transaction : (CreateTransactionRequest) -> (Result);
   deactivate_account : () -> (Result_1);
   deposit : (nat64) -> (Result_5);
-  get_balance : () -> (Result_6) query;
+  get_balance : () -> (Result_6);
   get_current_user : () -> (Result_7) query;
   get_my_transactions : (opt TransactionFilter, PaginationParams) -> (
       Result_8,
@@ -466,6 +467,7 @@ service : () -> {
   is_username_available : (text) -> (bool) query;
   mark_all_notifications_read : () -> (Result_5);
   mark_notification_read : (nat64) -> (Result_4);
+  query_ledger_balance : (principal) -> (Result_11) query;
   raise_dispute : (nat64, text) -> (Result);
   register_user : (RegisterUserRequest) -> (Result_7);
   search_users : (UserSearchParams, PaginationParams) -> (Result_3) query;

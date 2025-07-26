@@ -1,6 +1,10 @@
 use candid::Principal;
 use ic_cdk::api::time;
-
+use ic_cdk::{call, query};
+use icrc_ledger_types::icrc1::account::{Account, Subaccount};
+use candid::Nat;
+use num_traits::ToPrimitive;
+use std::convert::TryInto;
 use crate::types::{
     errors::ApiError,
     transaction::{Balance, BalanceHistoryEntry, Currency},
@@ -11,6 +15,8 @@ use crate::storage::{
     memory::MemoryRegion,
 };
 use crate::security::validation;
+
+use crate::BALANCE_SERVICE;
 
 pub struct BalanceService {
     balances: StableStorage<Principal, Balance>,
@@ -27,6 +33,50 @@ impl BalanceService {
             balance_history: TimeSeriesStorage::new(MemoryRegion::BalanceHistory),
             min_balance: 0,
             max_balance: u64::MAX,
+        }
+    }
+
+    pub fn ledger_canister_id() -> Principal {
+        Principal::from_text("uxrrr-q7777-77774-qaaaq-cai").expect("Invalid ledger canister ID")
+    }
+
+    pub async fn check_ledger_balance(account_owner: Principal) -> Result<Balance, ApiError> {
+        let account = Account {
+            owner: account_owner,
+            subaccount: None,
+        };
+        let args = (account,);
+
+        let call_result: Result<(Nat,), _> = call(
+            Self::ledger_canister_id(),
+            "icrc1_balance_of",
+            args,
+        ).await;
+
+        match call_result {
+            Ok((nat_balance,)) => {
+                ic_cdk::println!("The raw ledger balance is: {}", nat_balance);
+
+                let balance_u64 = nat_balance.0.to_u64().ok_or_else(|| ApiError::InternalError {
+                    details: format!("Ledger balance ({}) is too large to fit in a u64.", nat_balance),
+                })?;
+
+                let mut final_balance = BALANCE_SERVICE.with(|s| {
+                    s.borrow_mut().get_or_create_balance(account_owner)
+                });
+              
+                final_balance.available = balance_u64;
+                
+                Ok(final_balance)
+            }
+            Err((rejection_code, message)) => {
+                let err_msg = format!(
+                    "Ledger call failed with code {:?}: {}",
+                    rejection_code, message
+                );
+                ic_cdk::println!("{}", err_msg);
+                Err(ApiError::InternalError { details: err_msg })
+            }
         }
     }
     

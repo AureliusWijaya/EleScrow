@@ -1,4 +1,4 @@
-use candid::{export_service};
+use candid::{export_service, Principal};
 use ic_cdk_macros::{init, post_upgrade, pre_upgrade, query};
 use ic_cdk::api::time;
 use std::cell::RefCell;
