@@ -1,22 +1,23 @@
-use crate::types::{ConversationKey, Message, PaginationParams, PostResult, WsEvent};
-use crate::{get_memory, types::MAX_TEXT_BYTES};
+// Use the centralized memory management from your project
+use crate::storage::memory::{get_memory, Memory, MemoryRegion};
+use crate::types::messaging::{ConversationKey, Message, PaginationParams, PostResult, WsEvent, MAX_TEXT_BYTES};
 use candid::{candid_method, Principal};
 use ic_cdk::api::{self, time};
 use ic_cdk_macros::*;
-use ic_stable_structures::{StableBTreeMap, Storable};
+// Import VirtualMemory explicitly
+use ic_stable_structures::{StableBTreeMap, Storable, DefaultMemoryImpl, memory_manager::VirtualMemory};
 use std::{borrow::Cow, cell::RefCell, collections::HashSet};
 use ic_websocket_cdk::{send};
 
-const MESSAGES_MEMORY_ID: u8 = 0;
-const CONVERSATION_INDEX_MEMORY_ID: u8 = 1;
-
 
 thread_local! {
-    static MESSAGES: RefCell<StableBTreeMap<u64, Message, crate::Memory>> =
-        RefCell::new(StableBTreeMap::init(get_memory(MESSAGES_MEMORY_ID)));
-
-    static CONVERSATION_INDEX: RefCell<StableBTreeMap<Vec<u8>, (), crate::Memory>> =
-        RefCell::new(StableBTreeMap::init(get_memory(CONVERSATION_INDEX_MEMORY_ID)));
+    // Initialize using the get_memory function and the new MemoryRegions
+    static MESSAGES: RefCell<StableBTreeMap<u64, Message, Memory>> = RefCell::new(
+        StableBTreeMap::init(get_memory(MemoryRegion::Messages))
+    );
+    static CONVERSATION_INDEX: RefCell<StableBTreeMap<Vec<u8>, (), Memory>> = RefCell::new(
+        StableBTreeMap::init(get_memory(MemoryRegion::ConversationIndex))
+    );
 
     static NEXT_MESSAGE_ID: RefCell<u64> = RefCell::new(1);
 
@@ -66,7 +67,7 @@ pub fn post_message(to: Principal, text: String) -> PostResult {
         return PostResult::Err(format!("Message exceeds {} bytes limit", MAX_TEXT_BYTES));
     }
 
-    let from = api::msg_caller();
+    let from = api::caller();
     let id = NEXT_MESSAGE_ID.with_borrow_mut(|id_ref| {
         let id = *id_ref;
         *id_ref += 1;
@@ -97,7 +98,7 @@ pub fn post_message(to: Principal, text: String) -> PostResult {
 #[query]
 #[candid_method(query)]
 pub fn get_conversation_chunk(with: Principal, params: PaginationParams) -> Vec<Message> {
-    let me = api::msg_caller();
+    let me = api::caller();
     let conv_key = ConversationKey::new(me, with);
     let prefix = conv_key.to_bytes();
 
@@ -121,7 +122,7 @@ pub fn get_conversation_chunk(with: Principal, params: PaginationParams) -> Vec<
 #[update]
 #[candid_method(update)]
 pub fn mark_message_read(message_id: u64) -> PostResult {
-    let caller = api::msg_caller();
+    let caller = api::caller();
     MESSAGES.with_borrow_mut(|messages| {
         if let Some(mut message) = messages.get(&message_id) {
             if message.to != caller {

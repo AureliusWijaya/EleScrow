@@ -10,6 +10,7 @@ export default {
         primary: colors.gray["950"],
         secondary: colors.sky["700"],
         "secondary-hover": colors.sky["800"],
+        tertiary: colors.slate["900"],
         incoming: colors.emerald["800"],
         outgoing: colors.red["900"],
         "primary-text": colors.white,
