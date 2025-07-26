@@ -13,8 +13,27 @@ import ChatPage from "./pages/chat/ChatPage";
 import CreateTransactionPage from "./pages/transactions/CreateTransactionPage";
 import TransactionsPage from "./pages/transactions/TransactionsPage";
 import TransactionDetailPage from "./pages/transactions/TransactionDetailPage";
+import { icpService } from "./shared/services/icp-service";
+import { useUserStoreActions } from "./shared/store/user-store";
 
 function App(): JSX.Element {
+  const { setLoggedInUserPrincipal } = useUserStoreActions();
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      await icpService.initialize();
+      
+      if (icpService.isAuthenticated()) {
+        const principal = icpService.getPrincipal();
+        if (principal) {
+          setLoggedInUserPrincipal(principal);
+        }
+      }
+    };
+    
+    initializeApp();
+  }, [setLoggedInUserPrincipal]);
+
   return (
     <MantineProvider>
       <Notifications />

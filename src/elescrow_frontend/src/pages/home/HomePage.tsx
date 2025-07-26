@@ -1,15 +1,20 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Button from "../../shared/components/Button";
 import { Stepper } from "@mantine/core";
 
 import { AuthClient } from "@dfinity/auth-client";
 import { Principal } from "@dfinity/principal";
 import { Identity } from "@dfinity/agent";
-import { useUserStoreActions } from "../../shared/store/user-store";
+import { useUserStoreActions, useLoggedInUserPrincipal } from "../../shared/store/user-store";
+import { icpService } from "../../shared/services/icp-service";
 
 function HomePage(): JSX.Element {
+  const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const { setLoggedInUserPrincipal } = useUserStoreActions();
+  const loggedInPrincipal = useLoggedInUserPrincipal();
+  const isAuthenticated = loggedInPrincipal || icpService.isAuthenticated();
 
   const loginICP = async () => {
     console.log("Login initiated");
@@ -53,9 +58,20 @@ function HomePage(): JSX.Element {
             </span>
           </div>
 
-          <Button className="!px-16 !py-4 z-10" click={loginICP}>
-            Connect Wallet
-          </Button>
+          {isAuthenticated ? (
+            <div className="flex gap-4 z-10">
+              <Button className="!px-8 !py-4" click={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
+              <Button className="!px-8 !py-4" variant="outlined" click={() => navigate("/transaction/create")}>
+                Create Transaction
+              </Button>
+            </div>
+          ) : (
+            <Button className="!px-16 !py-4 z-10" click={loginICP}>
+              Connect Wallet
+            </Button>
+          )}
 
           <div className="absolute w-full h-full bg-secondary z-0 rounded-full blur-3xl opacity-30"></div>
         </div>

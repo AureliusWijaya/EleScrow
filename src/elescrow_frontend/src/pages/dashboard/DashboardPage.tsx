@@ -1,7 +1,9 @@
 import React from "react";
 import TransactionBox from "../../shared/components/TransactionBox";
+import { useAuth } from "../../shared/hooks/useAuth";
 
 function DashboardPage(): JSX.Element {
+  const { isAuthenticated, loggedInPrincipal } = useAuth();
   const recentTransactions = [
     {
       date: "13 July 2025",

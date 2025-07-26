@@ -9,6 +9,7 @@ interface UserStoreState {
 
 interface UserStoreActions {
   setLoggedInUserPrincipal: (principal: Principal) => void;
+  clearLoggedInUserPrincipal: () => void;
 }
 
 const useUserStore = create<UserStoreState>()((set) => ({
@@ -16,6 +17,8 @@ const useUserStore = create<UserStoreState>()((set) => ({
   actions: {
     setLoggedInUserPrincipal: (principal) =>
       set(() => ({ loggedInUserPrincipal: principal })),
+    clearLoggedInUserPrincipal: () =>
+      set(() => ({ loggedInUserPrincipal: null })),
   },
 }));
 
