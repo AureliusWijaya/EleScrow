@@ -83,14 +83,14 @@ export function useFormComponent(props: IFormComponentProps) {
         if (isFormDirty) {
             if (isValid) {
                 return (
-                    <span className="absolute -top-2 left-2 bg-primary text-error px-1 text-xs animate-fade-out">
+                    <span className="absolute -top-2 left-2 z-50 bg-primary text-error px-1 text-xs animate-fade-out">
                         {errorMsg}
                     </span>
                 );
             }
 
             return (
-                <span className="absolute -top-2 left-2 bg-primary text-error px-1 text-xs animate-fade-in">
+                <span className="absolute -top-2 left-2 z-50 bg-primary text-error px-1 text-xs animate-fade-in">
                     {errorMsg}
                 </span>
             );
