@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { IFormComponentProps } from "../../models/form/form-component-props.i";
-import { IFormValidatorsData } from "../../models/form/form-validators-data.i";
-import { FormComponentUtils } from "../utils/form/form-component-utils.c";
-import { useFormComponent } from "../utils/form/form-component-hooks";
+import "./input.css";
+import { IFormComponentProps } from "../../../models/form/form-component-props.i";
+import { FormComponentUtils } from "../../utils/form/form-component-utils.c";
+import { IFormValidatorsData } from "../../../models/form/form-validators-data.i";
+import { useFormComponent } from "../../utils/form/form-component-hooks";
 
 interface IProps extends IFormComponentProps {
+    type: React.HTMLInputTypeAttribute;
     placeholder?: string;
-    rows?: number;
 }
 
-function Textarea(props: IProps): JSX.Element {
+function Input(props: IProps): JSX.Element {
     const [
         value,
         isValid,
@@ -30,14 +31,14 @@ function Textarea(props: IProps): JSX.Element {
             </label>
 
             <div className="relative">
-                <textarea
+                <input
                     id={props.fcId}
                     name={props.fcId}
+                    type={props.type}
                     placeholder={props.placeholder}
                     value={value}
                     onChange={(e) => handleOnChange(e.target.value)}
-                    rows={props.rows || 4}
-                    className={`w-full bg-transparent border-2 border-secondary-text rounded-lg text-primary-text placeholder-secondary-text focus:outline-none focus:border-secondary-hover resize-none ${getSizeClasses()}${
+                    className={`w-full bg-transparent border-2 border-secondary-text rounded-lg text-primary-text placeholder-secondary-text focus:outline-none focus:border-secondary-hover ${getSizeClasses()}${
                         isFormDirty && !isValid ? " !border-error" : ""
                     }`}
                 />
@@ -48,4 +49,4 @@ function Textarea(props: IProps): JSX.Element {
     );
 }
 
-export default Textarea;
+export default Input;

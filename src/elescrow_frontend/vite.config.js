@@ -7,46 +7,49 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 export default defineConfig({
-  build: {
-    emptyOutDir: true,
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: "globalThis",
-      },
+    build: {
+        emptyOutDir: true,
     },
-  },
-  server: {
-    headers: {
-      'Content-Security-Policy': "connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io ws://localhost:* ws://127.0.0.1:* ws://*.localhost:* ws://*.127.0.0.1:*",
+    optimizeDeps: {
+        esbuildOptions: {
+            define: {
+                global: "globalThis",
+            },
+        },
     },
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:4943",
-        changeOrigin: true,
-      },
+    server: {
+        headers: {
+            "Content-Security-Policy":
+                "connect-src 'self' http://localhost:* http://127.0.0.1:* https://icp0.io https://*.icp0.io https://icp-api.io ws://localhost:* ws://127.0.0.1:* ws://*.localhost:* ws://*.127.0.0.1:*",
+        },
+        proxy: {
+            "/api": {
+                target: "http://127.0.0.1:4943",
+                changeOrigin: true,
+            },
+        },
+        watch: {
+            usePolling: true,
+        },
+        host: true,
+        hmr: {
+            host: "localhost",
+        },
     },
-    watch: {
-      usePolling: true,
-    },
-    host: true,
-    hmr: {
-      host: "localhost",
-    },
-  },
-  plugins: [
-    react(),
-    environment("all", { prefix: "CANISTER_" }),
-    environment("all", { prefix: "DFX_" }),
-  ],
-  resolve: {
-    alias: [
-      {
-        find: "declarations",
-        replacement: fileURLToPath(new URL("../declarations", import.meta.url)),
-      },
+    plugins: [
+        react(),
+        environment("all", { prefix: "CANISTER_" }),
+        environment("all", { prefix: "DFX_" }),
     ],
-    dedupe: ["@dfinity/agent"],
-  },
+    resolve: {
+        alias: [
+            {
+                find: "declarations",
+                replacement: fileURLToPath(
+                    new URL("../declarations", import.meta.url)
+                ),
+            },
+        ],
+        dedupe: ["@dfinity/agent"],
+    },
 });

@@ -5,22 +5,26 @@
 
 body,
 html {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  font-family: "Montserrat", sans-serif;
-  width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-family: "Montserrat", sans-serif;
+    width: 100%;
 }
 
 span {
-  text-wrap: wrap;
+    text-wrap: wrap;
 }
 
 .grid-bg {
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    white 1px,
-    transparent 0
-  );
-  background-size: 16px 16px;
+    background-image: radial-gradient(
+        circle at 1px 1px,
+        white 1px,
+        transparent 0
+    );
+    background-size: 16px 16px;
+}
+
+:root {
+    --toastify-color-error: #f87171;
 }
