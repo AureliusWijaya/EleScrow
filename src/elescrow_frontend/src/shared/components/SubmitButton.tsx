@@ -7,7 +7,10 @@ interface IProps extends IBaseComponentProps {
     onClick?: (event?: any) => any;
 }
 
-function Button(props: IProps): JSX.Element {
+function SubmitButton(props: IProps): JSX.Element {
+    const isFormDirty = useIsFormDirty();
+    const { onSubmit, setIsFormDirty } = useFormStoreActions();
+
     const baseClasses = "px-7 py-2 rounded-lg font-medium transition-colors";
 
     const getVariantClasses = () => {
@@ -21,11 +24,17 @@ function Button(props: IProps): JSX.Element {
         if (props.onClick) {
             props.onClick(event);
         }
+
+        onSubmit();
+
+        if (!isFormDirty) {
+            setIsFormDirty(true);
+        }
     };
 
     return (
         <button
-            type="button"
+            type="submit"
             className={`${baseClasses} ${getVariantClasses()} ${
                 props.className || ""
             }`}
@@ -36,4 +45,4 @@ function Button(props: IProps): JSX.Element {
     );
 }
 
-export default Button;
+export default SubmitButton;
